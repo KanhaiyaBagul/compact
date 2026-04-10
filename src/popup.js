@@ -1154,7 +1154,7 @@ function downloadReportPdf() {
   </script>
 </body>
 </html>
-  \`;
+  `;
 
   const blob = new Blob([html], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
