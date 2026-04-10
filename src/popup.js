@@ -1,19 +1,4 @@
 import './styles.css';
-import mermaid from '../node_modules/mermaid/dist/mermaid.js';
-
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'default',
-  themeVariables: {
-    primaryColor: '#faf9f6',
-    lineColor: '#3b82f6',
-    textColor: '#1e293b',
-    mainBkg: '#f8fafc',
-    nodeBorder: '#cbd5e1'
-  },
-  fontFamily: 'Inter, sans-serif'
-});
-
 const DIFF_FETCH_TIMEOUT_MS = 15000;
 const OLLAMA_TIMEOUT_MS = null;
 const REPO_REVIEW_FILE_LIMIT = 25;
@@ -33,11 +18,58 @@ let currentReportMeta = {
 };
 let chatHistory = [];
 
+// Render all mermaid diagrams found in #result via the sandboxed iframe.
+let _mermaidSandbox = null;
+const _mermaidPending = new Map();
+
+function getMermaidSandbox() {
+  if (_mermaidSandbox) return _mermaidSandbox;
+
+  const iframe = document.createElement('iframe');
+  iframe.src = chrome.runtime.getURL('sandbox.html');
+  iframe.style.cssText = 'display:none;width:0;height:0;border:0;position:absolute;';
+  document.body.appendChild(iframe);
+
+  window.addEventListener('message', (event) => {
+    const { id, svg, error } = event.data || {};
+    if (!id || !_mermaidPending.has(id)) return;
+    const { resolve, reject } = _mermaidPending.get(id);
+    _mermaidPending.delete(id);
+    if (error) reject(new Error(error));
+    else resolve(svg);
+  });
+
+  _mermaidSandbox = iframe;
+  return iframe;
+}
+
+async function renderDiagramInSandbox(code) {
+  const iframe = getMermaidSandbox();
+  return new Promise((resolve, reject) => {
+    // Wait for iframe to be ready
+    const id = Date.now() + '-' + Math.floor(Math.random() * 99999);
+    _mermaidPending.set(id, { resolve, reject });
+    const send = () => iframe.contentWindow.postMessage({ id, code }, '*');
+    // If iframe is already loaded, send immediately; otherwise wait.
+    if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
+      send();
+    } else {
+      iframe.addEventListener('load', send, { once: true });
+    }
+    // Timeout after 10s
+    setTimeout(() => {
+      if (_mermaidPending.has(id)) {
+        _mermaidPending.delete(id);
+        reject(new Error('Mermaid sandbox timeout'));
+      }
+    }, 10000);
+  });
+}
+
 async function renderMermaidDiagrams() {
   const resultEl = document.getElementById('result');
   if (!resultEl) return;
-  
-  // Showdown usually renders ```mermaid as <pre><code class="mermaid language-mermaid">
+
   const mermaidBlocks = resultEl.querySelectorAll('code.language-mermaid, code.mermaid');
   if (mermaidBlocks.length === 0) return;
 
@@ -45,17 +77,16 @@ async function renderMermaidDiagrams() {
     const pre = block.parentElement;
     if (pre && pre.tagName.toLowerCase() === 'pre') {
       try {
-        const id = `mermaid-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-        const content = block.textContent;
-        const { svg } = await mermaid.render(id, content);
-        
+        const code = block.textContent;
+        const svg = await renderDiagramInSandbox(code);
+
         const container = document.createElement('div');
         container.className = 'mermaid-rendered my-4 p-4 bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto flex justify-center';
         container.innerHTML = svg;
-        
         pre.parentNode.replaceChild(container, pre);
       } catch (err) {
-        console.error('Mermaid render error:', err);
+        console.warn('Mermaid render error:', err.message);
+        // Leave raw code block as fallback - don't crash
       }
     }
   }
