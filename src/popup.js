@@ -228,7 +228,7 @@ async function getSettings() {
       {
         api_key: 'ollama',
         api_url: 'http://localhost:11434/v1',
-        model_name: 'deepseek-r1:1.5b',
+        model_name: 'llama3.2:1b',
         gh_token: '',
       },
       resolve
@@ -317,6 +317,24 @@ async function askOllama(client, prompt, timeoutMs = OLLAMA_TIMEOUT_MS) {
         `Ollama Connection Failed. Allow this extension origin in Ollama and restart Ollama.\n` +
         `Required origin: chrome-extension://${chrome.runtime.id}\n` +
         `Original error: ${errorMsg}`;
+    } else if (errorMsg.includes('not found')) {
+      // Specialized error for missing models
+      const settings = await getSettings();
+      errorMsg = `Model '${settings.model}' was not found in your Ollama.\n\n` +
+                 `Please run 'ollama pull ${settings.model}' in your terminal or change the model in the Settings page.`;
+      
+      // Try to fetch available models to help the user
+      try {
+        const modelsUrl = client.endpoint.replace('/chat/completions', '/models').replace('/v1', '/v1');
+        const mResp = await fetch(modelsUrl, { headers: client.headers });
+        if (mResp.ok) {
+          const mData = await mResp.json();
+          const names = (mData.data || []).map(m => m.id);
+          if (names.length > 0) {
+            errorMsg += `\n\nAvailable models detected: ${names.join(', ')}`;
+          }
+        }
+      } catch {}
     }
     throw new Error(errorMsg);
   }
