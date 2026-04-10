@@ -1,4 +1,8 @@
 import './styles.css';
+import { onAuthChanged, signOut, getCurrentUser } from './auth';
+import { getDeviceMetadata } from './utils/network';
+import { db } from './firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const DIFF_FETCH_TIMEOUT_MS = 60000;
 const OLLAMA_TIMEOUT_MS = null;
@@ -212,11 +216,14 @@ function inProgress(active, failed) {
 
 function setDownloadEnabled(enabled) {
   const downloadBtn = document.getElementById('download-btn');
-  if (downloadBtn) {
-    downloadBtn.disabled = !enabled;
-    downloadBtn.classList.toggle('opacity-50', !enabled);
-    downloadBtn.classList.toggle('shadow-none', !enabled);
-  }
+  const downloadMdBtn = document.getElementById('download-md-btn');
+  [downloadBtn, downloadMdBtn].forEach((btn) => {
+    if (btn) {
+      btn.disabled = !enabled;
+      btn.classList.toggle('opacity-50', !enabled);
+      btn.classList.toggle('shadow-none', !enabled);
+    }
+  });
 }
 
 async function getSettings() {
@@ -293,12 +300,19 @@ async function askOllama(client, prompt, timeoutMs = OLLAMA_TIMEOUT_MS) {
       timeoutMs
     );
 
-    const text = response?.choices?.[0]?.message?.content?.trim();
+    let text = response?.choices?.[0]?.message?.content?.trim();
     if (!text) {
       throw new Error(
         'Ollama returned an empty response. Check model availability and logs.'
       );
     }
+
+    // Optimization: Strip reasoning tags (<thought>) for models like DeepSeek-R1
+    // to ensure the final report is clean for the user.
+    if (text.includes('<thought>')) {
+      text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '').trim();
+    }
+
     return text;
   } catch (e) {
     let errorMsg = e.message || 'Unknown error';
@@ -561,6 +575,24 @@ async function reviewPR(diffPath, context, title) {
     const { score, counts } = computeRiskScore(staticMarkdown);
     updateRiskGauge(score, counts);
     setCachedResult(diffPath, document.getElementById('result').innerHTML);
+
+    // Metadata Logging
+    try {
+      const user = getCurrentUser();
+      const meta = await getDeviceMetadata();
+      updateSessionAuditUI(meta);
+      await addDoc(collection(db, 'analysis_logs'), {
+        uid: user?.uid || 'anonymous',
+        ip: meta.ip,
+        location: { city: meta.city, country: meta.country, region: meta.region },
+        repoUrl: diffPath,
+        timestamp: serverTimestamp(),
+        mode: 'pr'
+      });
+    } catch (logErr) {
+      console.error('Failed to log analysis metadata:', logErr);
+    }
+
     inProgress(false);
     setDownloadEnabled(true);
   } catch (e) {
@@ -876,6 +908,24 @@ async function reviewRepository(owner, repo) {
     updateRiskGauge(score, counts);
 
     setCachedResult(`repo:${currentReportMeta.url}`, document.getElementById('result').innerHTML);
+
+    // Metadata Logging
+    try {
+      const user = getCurrentUser();
+      const meta = await getDeviceMetadata();
+      updateSessionAuditUI(meta);
+      await addDoc(collection(db, 'analysis_logs'), {
+        uid: user?.uid || 'anonymous',
+        ip: meta.ip,
+        location: { city: meta.city, country: meta.country, region: meta.region },
+        repoUrl: currentReportMeta.url,
+        timestamp: serverTimestamp(),
+        mode: 'repo'
+      });
+    } catch (logErr) {
+      console.error('Failed to log analysis metadata:', logErr);
+    }
+
     inProgress(false);
     setDownloadEnabled(true);
   } catch (e) {
@@ -971,108 +1021,130 @@ const xcircle =
   '<svg class="h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
 
 function run(forceRefresh = false) {
-  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    if (!tabs[0]) return;
-    const url = (tabs[0].url || '').split('?')[0].split('#')[0];
-    const title = tabs[0].title;
-    const repoUrlParts = parseGitHubRepoUrl(url);
-    currentReportMeta = {
-      mode: repoUrlParts ? 'repo' : 'pr',
-      title:
-        title ||
-        (repoUrlParts ? `${repoUrlParts.owner}/${repoUrlParts.repo}` : ''),
-      url,
-      branch: '',
-      files: [],
-      totalAdditions: 0,
-      totalDeletions: 0,
-      skippedFiles: 0,
-    };
-    const isGitHubPR = url.match(
-      /https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/
-    );
-
-    const prUrlEl = document.getElementById('pr-url');
-    if (prUrlEl) prUrlEl.innerText = url;
-
-    if (isGitHubPR) {
-      const diffPath = url + '.patch';
-      if (forceRefresh) {
-        removeCachedResult(diffPath).then(() => reviewPR(diffPath, isGitHubPR, title));
-        return;
-      }
-      getCachedResult(diffPath).then((cached) => {
-        if (cached) {
-          document.getElementById('result').innerHTML = cached;
-          inProgress(false);
-          setDownloadEnabled(true);
-        } else {
-          reviewPR(diffPath, isGitHubPR, title);
-        }
-      });
-    } else if (repoUrlParts) {
-      const repoCacheKey = `repo:${url}`;
-      if (forceRefresh) {
-        removeCachedResult(repoCacheKey).then(() =>
-          reviewRepository(repoUrlParts.owner, repoUrlParts.repo)
-        );
-        return;
-      }
-      getCachedResult(repoCacheKey).then((cached) => {
-        if (cached) {
-          document.getElementById('result').innerHTML = cached;
-          inProgress(false);
-          setDownloadEnabled(true);
-        } else {
-          reviewRepository(repoUrlParts.owner, repoUrlParts.repo);
-        }
-      });
-    } else {
-      inProgress(false, true);
-      setDownloadEnabled(false);
-      document.getElementById('result').innerHTML =
-        '<div class="p-4 text-orange-600">Please navigate to a GitHub Pull Request or repository root page to use this extension.</div>';
+  // Auth Guard
+  onAuthChanged((user) => {
+    if (!user) {
+      chrome.tabs.create({ url: 'login.html' });
+      window.close();
+      return;
     }
+    
+    // Update user UI (badge/signout button will be in popup.html)
+    const userEmailEl = document.getElementById('user-email');
+    if (userEmailEl) userEmailEl.textContent = user.email;
+
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      if (!tabs[0]) return;
+      const url = (tabs[0].url || '').split('?')[0].split('#')[0];
+      const title = tabs[0].title;
+      const repoUrlParts = parseGitHubRepoUrl(url);
+      currentReportMeta = {
+        mode: repoUrlParts ? 'repo' : 'pr',
+        title:
+          title ||
+          (repoUrlParts ? `${repoUrlParts.owner}/${repoUrlParts.repo}` : ''),
+        url,
+        branch: '',
+        files: [],
+        totalAdditions: 0,
+        totalDeletions: 0,
+        skippedFiles: 0,
+      };
+      const isGitHubPR = url.match(
+        /https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/
+      );
+
+      const prUrlEl = document.getElementById('pr-url');
+      if (prUrlEl) prUrlEl.innerText = url;
+
+      if (isGitHubPR) {
+        const diffPath = url + '.patch';
+        if (forceRefresh) {
+          removeCachedResult(diffPath).then(() => reviewPR(diffPath, isGitHubPR, title));
+          return;
+        }
+        getCachedResult(diffPath).then((cached) => {
+          if (cached) {
+            document.getElementById('result').innerHTML = cached;
+            inProgress(false);
+            setDownloadEnabled(true);
+          } else {
+            reviewPR(diffPath, isGitHubPR, title);
+          }
+        });
+      } else if (repoUrlParts) {
+        const repoCacheKey = `repo:${url}`;
+        if (forceRefresh) {
+          removeCachedResult(repoCacheKey).then(() =>
+            reviewRepository(repoUrlParts.owner, repoUrlParts.repo)
+          );
+          return;
+        }
+        getCachedResult(repoCacheKey).then((cached) => {
+          if (cached) {
+            document.getElementById('result').innerHTML = cached;
+            inProgress(false);
+            setDownloadEnabled(true);
+          } else {
+            reviewRepository(repoUrlParts.owner, repoUrlParts.repo);
+          }
+        });
+      } else {
+        inProgress(false, true);
+        setDownloadEnabled(false);
+        document.getElementById('result').innerHTML =
+          '<div class="p-4 text-orange-600">Please navigate to a GitHub Pull Request or repository root page to use this extension.</div>';
+      }
+    });
   });
 }
 
 function downloadReportPdf() {
   const resultEl = document.getElementById('result');
+  const riskScore = document.getElementById('risk-score-num')?.textContent || '--';
+  const riskLevel = document.getElementById('risk-level-tag')?.textContent || 'UNKNOWN';
   if (!resultEl || !resultEl.innerText.trim()) return;
 
   const now = new Date();
+  const sep = '================================================================================';
+  const subSep = '--------------------------------------------------------------------------------';
+  
   const lines = [
-    'Compact Review Report',
+    sep,
+    '                          COMPACT AI CODE REVIEW REPORT',
+    sep,
     '',
-    `Mode: ${
-      currentReportMeta.mode === 'repo'
-        ? 'Repository Review'
-        : 'Pull Request Review'
-    }`,
-    `Title: ${currentReportMeta.title || 'N/A'}`,
-    `URL: ${currentReportMeta.url || 'N/A'}`,
-    ...(currentReportMeta.branch
-      ? [`Branch: ${currentReportMeta.branch}`]
-      : []),
-    `Generated: ${now.toISOString()}`,
+    `  GENERATED: ${now.toLocaleString()}`,
+    `  TARGET:    ${currentReportMeta.url || 'N/A'}`,
+    `  MODE:      ${currentReportMeta.mode === 'repo' ? 'Repository Scan' : 'Pull Request Review'}`,
+    `  BRANCH:    ${currentReportMeta.branch || 'N/A'}`,
     '',
-    `Files changed: ${currentReportMeta.files.length}`,
-    `Total additions: ${currentReportMeta.totalAdditions}`,
-    `Total deletions: ${currentReportMeta.totalDeletions}`,
-    ...(currentReportMeta.mode === 'repo'
-      ? [`Files skipped (limit/filter): ${currentReportMeta.skippedFiles}`]
-      : []),
+    subSep,
+    '  DASHBOARD SUMMARY',
+    subSep,
+    `  [!] RISK SCORE: ${riskScore}/100    LEVEL: ${riskLevel}`,
     '',
-    '----- FILES -----',
+    `  Files Analyzed:  ${currentReportMeta.files.length}`,
+    `  Total Additions: ${currentReportMeta.totalAdditions}`,
+    `  Total Deletions: ${currentReportMeta.totalDeletions}`,
+    ...(currentReportMeta.mode === 'repo' ? [`  Files Skipped:   ${currentReportMeta.skippedFiles}`] : []),
+    '',
+    subSep,
+    '  INCLUDED FILES',
+    subSep,
     ...(currentReportMeta.files.length
-      ? currentReportMeta.files.map(
-          (f) => `${f.path} (+${f.additions} / -${f.deletions})`
-        )
-      : ['No file stats available']),
+      ? currentReportMeta.files.map((f) => `  - ${f.path.padEnd(45)} (+${f.additions} / -${f.deletions})`)
+      : ['  No file stats available']),
     '',
-    '----- REVIEW -----',
+    subSep,
+    '  DETAILED ANALYSIS',
+    subSep,
     '',
-    ...resultEl.innerText.split('\n'),
+    ...resultEl.innerText.split('\n').map(line => `  ${line}`),
+    '',
+    sep,
+    '                          END OF COMPACT AI REPORT',
+    sep,
   ];
 
   const wrappedLines = wrapLines(lines, 95);
@@ -1099,6 +1171,43 @@ function sanitizeFileName(input) {
     .trim()
     .replace(/\s+/g, '-')
     .slice(0, 80);
+}
+
+function downloadReportMd() {
+  const resultEl = document.getElementById('result');
+  if (!resultEl || !staticMarkdown) return;
+
+  const now = new Date();
+  const header = [
+    `# Compact AI Review Report`,
+    `> **Generated**: ${now.toLocaleString()}`,
+    `> **Target**: ${currentReportMeta.url || 'Repository'}`,
+    `> **Mode**: ${currentReportMeta.mode === 'repo' ? 'Repository Scan' : 'Pull Request Review'}`,
+    `> **Risk Score**: ${document.getElementById('risk-score-num')?.textContent || '--'}/100`,
+    ``,
+    `---`,
+    ``,
+    `## Context Overview`,
+    `- **Files Analyzed**: ${currentReportMeta.files.length}`,
+    `- **Total Additions**: ${currentReportMeta.totalAdditions}`,
+    `- **Total Deletions**: ${currentReportMeta.totalDeletions}`,
+    currentReportMeta.mode === 'repo' ? `- **Files Skipped**: ${currentReportMeta.skippedFiles}` : '',
+    ``,
+    `### Files Included`,
+    ...currentReportMeta.files.map(f => `- \`${f.path}\` (+${f.additions} / -${f.deletions})`),
+    ``,
+    `---`,
+    ``,
+    staticMarkdown
+  ].join('\n');
+
+  const blob = new Blob([header], { type: 'text/markdown' });
+  const downloadUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = `Compact_Review_${currentReportMeta.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'report'}.md`;
+  a.click();
+  URL.revokeObjectURL(downloadUrl);
 }
 
 function wrapLines(lines, maxChars) {
@@ -1198,6 +1307,10 @@ const downloadButton = document.getElementById('download-btn');
 if (downloadButton) {
   downloadButton.addEventListener('click', downloadReportPdf);
 }
+const downloadMdButton = document.getElementById('download-md-btn');
+if (downloadMdButton) {
+  downloadMdButton.addEventListener('click', downloadReportMd);
+}
 const chatToggleBtn = document.getElementById('chat-toggle-btn');
 if (chatToggleBtn) {
   chatToggleBtn.addEventListener('click', toggleChatPanel);
@@ -1215,4 +1328,22 @@ if (chatInput) {
     }
   });
 }
+
+function updateSessionAuditUI(meta) {
+  const ipEl = document.getElementById('meta-ip');
+  const locEl = document.getElementById('meta-loc');
+  const timeEl = document.getElementById('meta-time');
+  
+  if (ipEl) ipEl.textContent = meta.ip || '--';
+  if (locEl) locEl.textContent = meta.city ? `${meta.city}, ${meta.country}` : '--';
+  if (timeEl) timeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+const signoutBtn = document.getElementById('signout-btn');
+if (signoutBtn) {
+  signoutBtn.addEventListener('click', () => {
+    signOut().then(() => window.close());
+  });
+}
+
 run();

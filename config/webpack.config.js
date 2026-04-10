@@ -12,6 +12,8 @@ const config = (env, argv) =>
     entry: {
       popup: PATHS.src + '/popup.js',
       options: PATHS.src + '/options.js',
+      login: PATHS.src + '/login.js',
+      background: PATHS.src + '/background.js',
     },
     devtool: argv.mode === 'production' ? false : 'source-map',
     experiments: {
