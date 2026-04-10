@@ -3,27 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <title>Compact AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Calistoga&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
-  <body class="p-4 bg-transparent">
+  <body class="p-4 bg-transparent text-slate-800">
     <div class="glass-container flex h-full">
       <!-- Sidebar / Info Panel -->
-      <aside class="w-64 border-r border-white/5 p-6 flex flex-col gap-6 bg-black/20">
+      <aside class="w-64 border-r border-slate-200/50 p-6 flex flex-col gap-6 bg-slate-50/80">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-             <span class="text-white font-bold text-xl">C</span>
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+             <span class="text-white font-bold text-xl font-calistoga">C</span>
           </div>
-          <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Compact</h1>
+          <h1 class="text-xl font-bold text-slate-800 font-calistoga tracking-wide">Compact</h1>
         </div>
 
         <div class="flex flex-col gap-4 flex-grow">
           <div class="floating-card flex flex-col gap-1">
              <span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Current Target</span>
-             <span id="pr-url" class="text-xs text-slate-300 truncate font-mono">Loading...</span>
+             <span id="pr-url" class="text-xs text-slate-600 truncate font-mono">Loading...</span>
           </div>
 
           <div id="status-panel" class="floating-card flex items-center gap-3">
-             <div id="status-icon" class="text-blue-400"></div>
-             <span class="text-xs text-slate-300 font-medium">System Ready</span>
+             <div id="status-icon" class="text-blue-500"></div>
+             <span class="text-xs text-slate-700 font-semibold">System Ready</span>
           </div>
         </div>
 
@@ -34,17 +37,17 @@
               </svg>
               Refresh Review
            </button>
-           <button id="download-btn" disabled class="btn-premium w-full text-xs from-slate-700 to-slate-800 shadow-none border border-white/10 opacity-50">
+           <button id="download-btn" disabled class="w-full text-xs font-semibold py-2 rounded-xl border border-slate-300 text-slate-500 bg-white opacity-50 transition-all hover:bg-slate-50 disabled:hover:bg-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
               Export PDF
            </button>
         </div>
       </aside>
 
       <!-- Main Content Area -->
-      <main class="flex-grow p-6 flex flex-col gap-4 overflow-hidden">
+      <main class="flex-grow p-6 flex flex-col gap-4 overflow-hidden bg-white/90">
         <div class="flex justify-between items-center">
-           <h2 class="text-sm font-semibold text-slate-400 tracking-wide uppercase">AI Code Analysis</h2>
-           <div id="stats-badge" class="bg-blue-500/10 text-blue-400 text-[10px] px-2 py-1 rounded-full border border-blue-500/20 font-bold hidden">
+           <h2 class="text-sm font-semibold text-slate-500 tracking-wider uppercase">AI Code Analysis</h2>
+           <div id="stats-badge" class="bg-blue-50 text-blue-600 text-[10px] px-2.5 py-1 rounded-full border border-blue-200 font-bold hidden shadow-sm">
              MODEL ACTIVE
            </div>
         </div>
@@ -59,10 +62,12 @@
 
     <script src="popup.js"></script>
     <style>
-      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      .custom-scrollbar::-webkit-scrollbar { width: 6px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 10px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.5); }
+      .font-calistoga { font-family: 'Calistoga', serif; }
+      body { font-family: 'Inter', sans-serif; }
     </style>
   </body>
 </html>
