@@ -10,124 +10,49 @@
   <body>
     <div class="shell">
 
-      <!-- ── Sidebar ── -->
-      <aside class="sidebar">
-
-        <!-- Logo -->
-        <div class="logo-row">
-          <div class="logo-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 6L3 12L8 18" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M16 6L21 12L16 18" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M14 4L10 20" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div>
-            <h1 class="logo-title">Compact</h1>
-            <p class="logo-sub">AI Code Review</p>
-          </div>
-        </div>
-
-        <!-- Current Target -->
-        <div class="s-card target-card">
-          <span class="s-label">Scanning</span>
-          <span id="pr-url" class="target-url">Loading...</span>
-        </div>
-
-        <!-- Risk Gauge -->
-        <div class="s-card gauge-card">
-          <div class="gauge-header">
-            <span class="s-label">Risk Score</span>
-            <span class="gauge-tag" id="risk-level-tag">—</span>
-          </div>
-
-          <!-- SVG Gauge -->
-          <div class="gauge-wrap">
-            <svg viewBox="0 0 120 120" class="gauge-svg">
-              <!-- Subtle glow filter -->
-              <defs>
-                <filter id="glow">
-                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                  <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                </filter>
-              </defs>
-              <!-- Track -->
-              <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="8"/>
-              <!-- Tick marks -->
-              <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"
-                stroke-dasharray="2 12.5" stroke-linecap="round"/>
-              <!-- Active arc -->
-              <circle id="risk-arc"
-                cx="60" cy="60" r="46"
-                fill="none"
-                stroke="#22c55e"
-                stroke-width="8"
-                stroke-dasharray="0 289.0"
-                stroke-linecap="round"
-                filter="url(#glow)"
-                style="transition: stroke-dasharray 1.2s cubic-bezier(0.34,1.56,0.64,1), stroke 0.6s ease; transform: rotate(-90deg); transform-origin: 60px 60px;"/>
-            </svg>
-            <!-- Center label -->
-            <div class="gauge-center">
-              <span id="risk-score-num" class="gauge-num">--</span>
-              <span class="gauge-label">/ 100</span>
-            </div>
-          </div>
-
-          <!-- Risk pills -->
-          <div id="risk-pills" class="risk-pill-row">
-            <span class="no-risk-text">Run a review to see risk</span>
-          </div>
-        </div>
-
-        <!-- Status -->
-        <div id="status-panel" class="s-card status-card">
-          <div id="status-icon" class="status-icon-wrap"></div>
-          <span class="status-text">System Ready</span>
-        </div>
-
-        <!-- Spacer -->
-        <div class="flex-grow"></div>
-
-        <!-- Model Active Badge -->
-        <div id="stats-badge" class="model-badge hidden">
-          <span class="model-dot"></span>
-          Model Active
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="btn-stack">
-          <button id="rerun-btn" type="button" class="btn-primary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61 5.002 5.002 0 008.715 1.333H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
-            </svg>
-            Refresh Review
-          </button>
-          <button id="download-btn" disabled class="btn-secondary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-            Export PDF
-          </button>
-        </div>
-
-      </aside>
-
       <!-- ── Main Content ── -->
       <main class="main-panel">
 
         <!-- Top Bar -->
         <div class="topbar">
           <div class="topbar-left">
-            <div class="topbar-dot"></div>
-            <span class="topbar-title">AI Code Analysis</span>
+            <div class="logo-icon" style="width:28px;height:28px;border-radius:8px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 6L3 12L8 18" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 6L21 12L16 18" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14 4L10 20" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <span class="logo-title" style="font-size:13px;">Compact</span>
+              <div class="topbar-dot" style="display:inline-block;margin-left:8px;"></div>
+              <span class="topbar-title" style="margin-left:4px;">AI Code Analysis</span>
+            </div>
           </div>
-          <button id="chat-toggle-btn" class="btn-ghost">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-            Chat
-          </button>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div id="status-panel" class="s-card status-card" style="padding:5px 10px;">
+              <div id="status-icon" class="status-icon-wrap"></div>
+              <span class="status-text">System Ready</span>
+            </div>
+            <button id="rerun-btn" type="button" class="btn-primary" style="padding:6px 12px;font-size:11px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61 5.002 5.002 0 008.715 1.333H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+              </svg>
+              Refresh
+            </button>
+            <button id="download-btn" disabled class="btn-secondary" style="padding:6px 12px;font-size:11px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+              Export PDF
+            </button>
+            <button id="chat-toggle-btn" class="btn-ghost">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              Chat
+            </button>
+          </div>
         </div>
 
         <!-- Scrollable Result -->
@@ -685,7 +610,7 @@
         display: flex;
         justify-content: center;
         margin: 16px 0;
-        background: #fff;
+        background: rgba(255,255,255,0.04);
         border-radius: 12px;
         padding: 16px;
         border: 1px solid rgba(255,255,255,0.08);
