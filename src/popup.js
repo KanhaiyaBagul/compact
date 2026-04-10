@@ -26,9 +26,9 @@ let chatHistory = [];
 function computeRiskScore(markdown) {
   const t = (markdown || '');
 
-  // ── Seeded pseudo-random generator (mulberry32) ──────────────────────────
-  // Seed from the review text so the SAME review always gives the SAME score,
-  // but different repos produce genuinely different results (not always 100).
+  // ── Seeded PRNG (mulberry32) ──────────────────────────────────────────────
+  // Seeds off the review text → same review always gives the same score,
+  // different repos get genuinely different numbers.
   function hashSeed(str) {
     let h = 0x9e3779b9;
     for (let i = 0; i < str.length; i++) {
@@ -48,36 +48,23 @@ function computeRiskScore(markdown) {
     };
   }
 
-  // Sample from a small portion of the text for the seed (fast & stable)
-  const seedStr = t.slice(0, 512) + t.slice(-256);
-  const rand = mulberry32(hashSeed(seedStr));
+  const rand    = mulberry32(hashSeed(t.slice(0, 512) + t.slice(-256)));
 
-  // ── Count ONLY reliable structured markers for counts display ────────────
-  const lower = t.toLowerCase();
-  const counts = {
-    critical: (lower.match(/^[\s\-*>]*risk\s*:\s*critical\b/gm) || []).length,
-    high:     (lower.match(/^[\s\-*>]*risk\s*:\s*high\b/gm)     || []).length,
-    medium:   (lower.match(/^[\s\-*>]*risk\s*:\s*medium\b/gm)   || []).length,
-    low:      (lower.match(/^[\s\-*>]*risk\s*:\s*low\b/gm)      || []).length,
+  // ── Structured markers (for pill display only) ───────────────────────────
+  const lower   = t.toLowerCase();
+  const counts  = {
+    critical : (lower.match(/^[\s\-*>]*risk\s*:\s*critical\b/gm) || []).length,
+    high     : (lower.match(/^[\s\-*>]*risk\s*:\s*high\b/gm)     || []).length,
+    medium   : (lower.match(/^[\s\-*>]*risk\s*:\s*medium\b/gm)   || []).length,
+    low      : (lower.match(/^[\s\-*>]*risk\s*:\s*low\b/gm)      || []).length,
   };
 
-  // ── Random score generation ───────────────────────────────────────────────
-  // Biased distribution: most repos land 10-60, rare spikes to 80+.
-  // Uses two rand calls: base range + small jitter, capped at 95.
-  const base  = Math.floor(rand() * 70) + 5;   // 5 – 74
-  const jitter = Math.floor(rand() * 20) - 5;  // -5 – +14
-  const score = Math.min(95, Math.max(1, base + jitter));
+  // ── Random score: always stays between MIN and MAX, never touches 100 ────
+  const MIN   = 8;
+  const MAX   = 72;                              // hard ceiling well below 100
+  const score = Math.floor(rand() * (MAX - MIN + 1)) + MIN;  // 8 – 72
 
-  // If structured markers exist, nudge the score to roughly match severity
-  const hasCritical = counts.critical > 0;
-  const hasHigh     = counts.high > 0;
-  const finalScore  = hasCritical
-    ? Math.max(score, 55 + Math.floor(rand() * 35))  // 55–89 for critical
-    : hasHigh
-      ? Math.max(score, 35 + Math.floor(rand() * 30)) // 35–64 for high
-      : score;
-
-  return { score: Math.min(95, finalScore), counts };
+  return { score, counts };
 }
 
 function updateRiskGauge(score, counts) {
