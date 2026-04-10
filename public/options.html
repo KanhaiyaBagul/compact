@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Compact Settings</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f2f6fb;
+        --panel: #ffffff;
+        --line: #d8e1ee;
+        --ink: #112240;
+        --muted: #667a98;
+        --accent: #0ea5e9;
+        --accent-strong: #0284c7;
+        --ok-bg: #ecfdf5;
+        --ok-ink: #047857;
+        --ok-line: #6ee7b7;
+        --err-bg: #fef2f2;
+        --err-ink: #b91c1c;
+        --err-line: #fca5a5;
+        --shadow: 0 26px 42px -28px rgb(15 23 42 / 0.45);
+      }
+      body {
+        font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+        background: radial-gradient(
+            circle at 10% 10%,
+            rgb(14 165 233 / 0.14),
+            transparent 35%
+          ),
+          radial-gradient(
+            circle at 90% 0%,
+            rgb(16 185 129 / 0.1),
+            transparent 30%
+          ),
+          var(--bg);
+        color: var(--ink);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1.3rem;
+        min-width: 320px;
+      }
+      .container {
+        background: var(--panel);
+        padding: 1.2rem;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+        width: 100%;
+        max-width: 680px;
+      }
+      h1 {
+        font-size: 1.42rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        color: #0b2545;
+        letter-spacing: 0.02em;
+      }
+      .subtitle {
+        color: var(--muted);
+        margin-bottom: 1rem;
+        font-size: 0.93rem;
+      }
+      .group {
+        margin-bottom: 1rem;
+      }
+      label {
+        display: block;
+        font-size: 0.84rem;
+        font-weight: 600;
+        margin-bottom: 0.42rem;
+        color: #355078;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      input {
+        width: 100%;
+        padding: 0.65rem 0.72rem;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        font-size: 0.875rem;
+        box-sizing: border-box;
+        transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+        color: var(--ink);
+        background: #fbfdff;
+      }
+      input:focus {
+        outline: none;
+        border-color: #7cc7ef;
+        box-shadow: 0 0 0 3px rgb(14 165 233 / 0.16);
+        background: #ffffff;
+      }
+      .hint {
+        font-size: 0.77rem;
+        color: var(--muted);
+        margin-top: 0.35rem;
+        line-height: 1.35;
+      }
+      button {
+        width: 100%;
+        padding: 0.68rem 0.8rem;
+        background: var(--accent);
+        color: white;
+        border: 1px solid var(--accent);
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s, border-color 0.2s, transform 0.15s ease;
+        font-size: 0.9rem;
+      }
+      button:hover {
+        background: var(--accent-strong);
+        border-color: var(--accent-strong);
+        transform: translateY(-1px);
+      }
+      #status {
+        margin-top: 0.95rem;
+        font-size: 0.875rem;
+        text-align: left;
+        min-height: 1.15rem;
+        padding: 0.6rem 0.75rem;
+        border-radius: 10px;
+      }
+      .success {
+        color: var(--ok-ink);
+        background: var(--ok-bg);
+        border: 1px solid var(--ok-line);
+      }
+      .error {
+        color: var(--err-ink);
+        background: var(--err-bg);
+        border: 1px solid var(--err-line);
+      }
+      .button-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.65rem;
+        margin-top: 1.2rem;
+      }
+      .btn-secondary {
+        background: #334155;
+        border-color: #334155;
+      }
+      .btn-secondary:hover {
+        background: #1f2937;
+        border-color: #1f2937;
+      }
+      .setup-guide {
+        margin-top: 1.3rem;
+        padding-top: 1rem;
+        border-top: 1px dashed var(--line);
+        font-size: 0.84rem;
+        color: var(--muted);
+      }
+      .setup-guide h2 {
+        font-size: 0.93rem;
+        font-weight: 700;
+        color: #0f2f57;
+        margin: 0 0 0.5rem;
+      }
+      .setup-guide code {
+        display: block;
+        font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo,
+          monospace;
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 0.58rem 0.65rem;
+        border-radius: 8px;
+        margin: 0.5rem 0;
+        overflow-x: auto;
+      }
+      @media (max-width: 640px) {
+        body {
+          padding: 0.75rem;
+        }
+        .container {
+          padding: 0.95rem;
+        }
+        .button-group {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Compact Configuration</h1>
+      <div class="subtitle">
+        Configure Compact and validate local Ollama connectivity.
+      </div>
+
+      <div class="group">
+        <label for="api_key">API Key (Optional)</label>
+        <input type="password" id="api_key" placeholder="ollama" />
+        <div class="hint">Not required for standard Ollama setups.</div>
+      </div>
+
+      <div class="group">
+        <label for="api_url">Ollama Base URL</label>
+        <input
+          type="text"
+          id="api_url"
+          placeholder="http://localhost:11434/v1"
+        />
+        <div class="hint">Standard: <code>http://localhost:11434/v1</code></div>
+      </div>
+
+      <div class="group">
+        <label for="model_name">Model Name</label>
+        <input type="text" id="model_name" placeholder="llama3.2:1b" />
+        <div class="hint">
+          e.g., <code>llama3.2:1b</code>, <code>mistral</code>,
+          <code>gemma</code>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button id="save">Save Settings</button>
+        <button id="test" class="btn-secondary">Test Connection</button>
+      </div>
+      <div id="status"></div>
+
+      <div class="setup-guide">
+        <h2>CORS Fix (Required)</h2>
+        <p>If you get a 403 error, set this Environment Variable on your PC:</p>
+        <code>OLLAMA_ORIGINS = chrome-extension://*</code>
+        <p>
+          Then <strong>Restart Ollama</strong> (Quit from tray and restart).
+        </p>
+      </div>
+    </div>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,39 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.venv/
+*.log
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+config.yaml
+settings.json
+.mcp.json
+CLAUDE.md
+personas/*/logs/
+
+# Beads issue tracker database (syncs to separate branch via bd sync)
+# The beads data is synced to a dedicated branch (e.g., beads-sync) to avoid
+# conflicts with the main branch of projects being reviewed.
+.beads/
+
+# Internal operations log for debugging and improving the tool
+.reviewer-log/
+
+# Vibe MCP state
+.vibe/
+
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Compact AI</title>
+  </head>
+  <body class="p-4 bg-transparent">
+    <div class="glass-container flex h-full">
+      <!-- Sidebar / Info Panel -->
+      <aside class="w-64 border-r border-white/5 p-6 flex flex-col gap-6 bg-black/20">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+             <span class="text-white font-bold text-xl">C</span>
+          </div>
+          <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Compact</h1>
+        </div>
+
+        <div class="flex flex-col gap-4 flex-grow">
+          <div class="floating-card flex flex-col gap-1">
+             <span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Current Target</span>
+             <span id="pr-url" class="text-xs text-slate-300 truncate font-mono">Loading...</span>
+          </div>
+
+          <div id="status-panel" class="floating-card flex items-center gap-3">
+             <div id="status-icon" class="text-blue-400"></div>
+             <span class="text-xs text-slate-300 font-medium">System Ready</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3">
+           <button id="rerun-btn" type="button" class="btn-premium w-full text-xs">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61 5.002 5.002 0 008.715 1.333H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+              </svg>
+              Refresh Review
+           </button>
+           <button id="download-btn" disabled class="btn-premium w-full text-xs from-slate-700 to-slate-800 shadow-none border border-white/10 opacity-50">
+              Export PDF
+           </button>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="flex-grow p-6 flex flex-col gap-4 overflow-hidden">
+        <div class="flex justify-between items-center">
+           <h2 class="text-sm font-semibold text-slate-400 tracking-wide uppercase">AI Code Analysis</h2>
+           <div id="stats-badge" class="bg-blue-500/10 text-blue-400 text-[10px] px-2 py-1 rounded-full border border-blue-500/20 font-bold hidden">
+             MODEL ACTIVE
+           </div>
+        </div>
+
+        <div class="flex-grow overflow-y-auto custom-scrollbar pr-2">
+           <div id="result" class="animate-fade leading-relaxed">
+              <!-- Result content injected here -->
+           </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="popup.js"></script>
+    <style>
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+    </style>
+  </body>
+</html>

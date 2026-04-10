@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --glass-bg: rgba(15, 23, 42, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --accent-primary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  --accent-success: #10b981;
+  --accent-error: #ef4444;
+}
+
+body {
+    @apply bg-transparent text-slate-100 antialiased font-sans;
+    min-width: 780px;
+    min-height: 580px;
+}
+
+/* Glass Container */
+.glass-container {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    @apply rounded-3xl shadow-2xl overflow-hidden flex flex-col;
+    height: 560px;
+}
+
+/* Premium Cards */
+.floating-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    @apply rounded-2xl p-4 transition-all duration-300;
+}
+
+.floating-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Chat Input Styling */
+.chat-input {
+    background: rgba(0, 0, 0, 0.2);
+    @apply border-none focus:ring-1 focus:ring-blue-500 rounded-xl text-sm py-3 px-4 w-full text-white placeholder-slate-500;
+}
+
+/* Gradient Buttons */
+.btn-premium {
+    background: var(--accent-primary);
+    @apply text-white font-semibold flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition-transform active:scale-95 shadow-lg shadow-blue-500/20 disabled:opacity-50;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Markdown Overrides */
+#result h2 { @apply text-lg font-bold text-white mt-4 mb-2; }
+#result p { @apply text-slate-300 leading-relaxed text-sm; }
+#result ul { @apply list-disc list-inside space-y-1 my-2 text-sm text-slate-400; }
+#result code { @apply bg-slate-800 text-blue-300 px-1.5 py-0.5 rounded text-xs font-mono; }
+#result blockquote { @apply border-l-4 border-slate-700 pl-4 py-1 italic text-slate-400; }

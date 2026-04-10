@@ -1,0 +1,238 @@
+# Angry AI Configuration - SAMPLE
+# Copy this file to config.yaml and edit with your settings
+#
+# Generic AI code reviewer with build validation
+# Works with ANY codebase - just configure your build command
+
+# =============================================================================
+# LLM Configuration
+# =============================================================================
+# One or more OpenAI-compatible LLM providers.  Any server that exposes
+# /v1/chat/completions works: vLLM, OpenAI, Ollama (with OpenAI-compat
+# mode), llama.cpp server, etc.
+#
+# Providers are tried in order; the first reachable one is used.
+# Each provider needs a URL and optionally an API key.
+#
+# Quick start:
+#   make config-init      # Interactive setup
+#   make validate         # Verify the connection before reviewing
+#
+llm:
+  # -------------------------------------------------------------------------
+  # Providers (at least one required)
+  # -------------------------------------------------------------------------
+  # Each entry is a URL + optional API key.  Add as many as you like;
+  # they act as failover — the first healthy provider handles requests.
+  #
+  # Environment variable overrides (applied to *first* provider):
+  #   LLM_URL=http://my-server:8000
+  #   LLM_API_KEY=sk-...
+  #
+  # Examples:
+  #   providers:
+  #     - url: "http://localhost:8000"             # local vLLM, no key
+  #     - url: "https://api.openai.com"
+  #       api_key: "sk-..."                        # OpenAI fallback
+  #
+  providers:
+    - url: "http://localhost:8090"
+      api_key: ""
+
+  # -------------------------------------------------------------------------
+  # Model name
+  # -------------------------------------------------------------------------
+  # Sent as the "model" field in /v1/chat/completions requests.
+  # When blank, the client auto-discovers available models at startup and
+  # selects the first one.  Set this explicitly to prefer a specific model.
+  #
+  # model: ""
+
+  # -------------------------------------------------------------------------
+  # Request parameters
+  # -------------------------------------------------------------------------
+
+  # Request timeout in seconds
+  # Increase if you get timeouts with large files or slow models
+  timeout: 600
+
+  # Maximum tokens to generate per response
+  max_tokens: 4096
+
+  # Temperature for generation (0.0 = deterministic, 1.0 = creative)
+  temperature: 0.1
+
+# Source tree configuration
+source:
+  # Path to source code root directory
+  # (Relative paths resolved from config file location)
+  # Default ".." assumes config is in a subdirectory like angry-ai/
+  root: ".."
+  
+  # Build command to validate ALL changes in current directory
+  # This is the ONLY project-specific configuration!
+  # The script chdir's to source root before running this command.
+  #
+  # Examples for different projects:
+  #   FreeBSD:     "sudo make -j$(sysctl -n hw.ncpu) buildworld"
+  #   Linux:       "make -j$(nproc)"
+  #   CMake:       "cmake --build build -j$(nproc)"
+  #   Autotools:   "./configure && make -j$(nproc)"
+  #   Rust:        "cargo build --release"
+  #   Go:          "go build ./..."
+  #   Python:      "python -m pytest" or "tox"
+  #   Node.js:     "npm test"
+  build_command: "sudo make -j$(sysctl -n hw.ncpu) buildworld"
+  
+  # Build timeout in seconds (adjust for your project)
+  # FreeBSD buildworld: ~2 hours
+  # Linux kernel: ~30 minutes
+  # Most projects: ~5-10 minutes
+  build_timeout: 7200  # 2 hours
+  
+  # Optional: branch to use for review operations (defaults to repo default)
+  # If this branch is checked out in another worktree, a reviewer/* branch will be created
+  # branch: "main"
+
+  # Pre-build command to run once at startup
+  # Examples: "sudo -v" (cache sudo), "npm install" (deps), "" (none)
+  # Set to empty string to disable
+  pre_build_command: "sudo -v"
+
+  # Optional: environment variables for build commands
+  # These are merged with the current environment (overriding existing values).
+  # Applied to both build_command and pre_build_command subprocesses.
+  # Useful for setting compiler flags, cross-compilation targets, etc.
+  #
+  # Examples:
+  #   build_environment:
+  #     CC: "clang"
+  #     CXX: "clang++"
+  #     CFLAGS: "-O2 -pipe -Wall"
+  #     MAKEFLAGS: "-j4"
+  #     DESTDIR: "/tmp/buildroot"
+  #     WITHOUT_CLEAN: "yes"
+  #     CROSS_TOOLCHAIN: "aarch64-gcc12"
+  #
+  # Default: empty (inherit current environment unmodified)
+  build_environment: {}
+
+# Review configuration
+review:
+  # File chunking settings (prevents timeouts on large files)
+  # Files larger than chunk_threshold get split into chunks
+  chunk_threshold: 400          # Lines before file is chunked (default: 400)
+  chunk_size: 250               # Maximum lines per chunk (default: 250)
+  
+  # Agent directory (contains agent behavior configuration)
+  #
+  # AGENT SPEC FORMAT (preferred):
+  #   Structure: personas/<name>/
+  #     - agent.yaml (Agent Spec configuration - all settings in one file)
+  #   See: https://oracle.github.io/agent-spec/26.1.0/
+  #
+  # LEGACY FORMAT (still supported):
+  #   Structure: personas/<name>/
+  #     - AI_START_HERE.md (bootstrap/instructions)
+  #     - PERSONA.md (personality definition)
+  #     - HANDOVER.md (workflow protocol)
+  #
+  # Available agents:
+  #   - freebsd-angry-ai: Ruthless security auditor (default, battle-tested)
+  #   - security-hawk: Paranoid security specialist
+  #   - performance-cop: Speed optimization expert
+  #   - friendly-mentor: Educational, encouraging reviewer
+  #   - example: Balanced, educational template
+  #
+  # Benefits:
+  #   - Source tree stays clean (only code changes)
+  #   - Multiple agents (security-focused, performance, friendly)
+  #   - Portable agents (share/version separately)
+  #   - Agent Spec format is standardized and interoperable
+  persona: "personas/freebsd-angry-ai"
+  
+  # Target number of directories to complete per session
+  # Session continues until this many directories are successfully reviewed,
+  # built, committed and pushed. Use 0 for unlimited (run until HALT or error).
+  target_directories: 10
+  
+  # Maximum iterations per directory before giving up and moving on
+  # Prevents infinite loops on problematic directories
+  # A typical directory needs 50-100 iterations (read files, edit, build)
+  max_iterations_per_directory: 200
+  
+  # Parallel file processing
+  # Controls how many files are reviewed concurrently within a directory.
+  # Set to 0 for DYNAMIC mode: automatically determined from server metrics
+  # Set to 1 for SEQUENTIAL mode: review files one at a time (safest)
+  # Set to 2+ for STATIC parallel mode: fixed number of concurrent reviews
+  #   (will warn at startup if this differs from server-recommended value)
+  # Note: Builds are always sequential regardless of this setting
+  max_parallel_files: 0
+
+  # Performance optimization features
+  # These settings enable parallelization and connection pooling for faster reviews
+  performance:
+    # Phase 1: Enable per-file locking for parallel edit application
+    # When true, edits to different files are applied in parallel (2-3x speedup)
+    # When false, all edits are applied sequentially with a global lock
+    parallel_edits: true
+
+    # Phase 2: Use HTTP connection pooling for API requests
+    # When true, HTTP connections are reused across requests (10-20% latency reduction)
+    # When false, each request creates a new TCP connection (legacy behavior)
+    connection_pooling: true
+
+    # Maximum concurrent HTTP connections in the connection pool
+    # Only used when connection_pooling is enabled
+    max_http_connections: 16
+
+    # Phase 3: Extend parallel review to more contexts beyond SET_SCOPE
+    # When true, parallel review is used for batched file operations (1.5-2x throughput)
+    # When false, parallel review only used in SET_SCOPE action
+    aggressive_parallelism: true
+
+    # Phase 4: EXPERIMENTAL - Background build execution (HIGH RISK)
+    # When true, builds run in background while review continues (2-5x for build-heavy workflows)
+    # When false, builds block all review work (default, safe behavior)
+    # WARNING: This feature is experimental and may cause race conditions
+    # Only enable if you understand the risks and have tested thoroughly
+    background_builds: false
+
+  # Maximum commits to revert during pre-flight sanity check recovery
+  # If source doesn't build at startup, pre-flight reverts commits until it does
+  # Higher values allow recovery from longer periods of broken commits
+  # Default: 100 (can handle ~100 bad commits before giving up)
+  max_reverts: 100
+  
+  # Files/patterns to skip during review
+  skip_patterns:
+    - "*.o"
+    - "*.a"
+    - "*.so"
+    - ".git/*"
+    - "angry-ai/*"
+    - "ai-code-reviewer/*"  # Prevent self-review!
+    - "*.pyc"
+    - "__pycache__/*"
+
+# Logging configuration
+logging:
+  # Directory for log files (relative to source root)
+  log_dir: ".ai-code-reviewer/logs"
+  
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+  
+  # Keep last N log files per session
+  max_log_files: 100
+
+# Internal operations logging (for debugging and improving the tool)
+ops_logging:
+  # Directory for operations log (relative to cwd, gitignored)
+  log_dir: ".reviewer-log"
+  
+  # Optional: sync logs to a dedicated branch in the audited project
+  # This makes logs available for analysis without polluting main branch
+  # Set to null/empty to disable
+  # sync_to_branch: "reviewer-logs"
