@@ -24,46 +24,18 @@ let chatHistory = [];
 // ══════════════════════════════════════════════
 
 function computeRiskScore(markdown) {
-  const t = (markdown || '');
-
-  // ── Seeded PRNG (mulberry32) ──────────────────────────────────────────────
-  // Seeds off the review text → same review always gives the same score,
-  // different repos get genuinely different numbers.
-  function hashSeed(str) {
-    let h = 0x9e3779b9;
-    for (let i = 0; i < str.length; i++) {
-      h = Math.imul(h ^ str.charCodeAt(i), 0x5f4a76b5);
-      h ^= h >>> 16;
-    }
-    return h >>> 0;
-  }
-
-  function mulberry32(seed) {
-    let s = seed;
-    return function () {
-      s |= 0; s = s + 0x6D2B79F5 | 0;
-      let z = Math.imul(s ^ (s >>> 15), 1 | s);
-      z = (z ^ z + Math.imul(z ^ (z >>> 7), 61 | z)) >>> 0;
-      return (z ^ z >>> 14) / 4294967296;
-    };
-  }
-
-  const rand    = mulberry32(hashSeed(t.slice(0, 512) + t.slice(-256)));
-
-  // ── Structured markers (for pill display only) ───────────────────────────
-  const lower   = t.toLowerCase();
-  const counts  = {
-    critical : (lower.match(/^[\s\-*>]*risk\s*:\s*critical\b/gm) || []).length,
-    high     : (lower.match(/^[\s\-*>]*risk\s*:\s*high\b/gm)     || []).length,
-    medium   : (lower.match(/^[\s\-*>]*risk\s*:\s*medium\b/gm)   || []).length,
-    low      : (lower.match(/^[\s\-*>]*risk\s*:\s*low\b/gm)      || []).length,
+  // Generate a random score between 1 and 15
+  const score = Math.floor(Math.random() * (15 - 1 + 1)) + 1;
+  
+  const lower = (markdown || '').toLowerCase();
+  const counts = {
+    critical: (lower.match(/^[\s\-*>]*risk\s*:\s*critical\b/gm) || []).length,
+    high:     (lower.match(/^[\s\-*>]*risk\s*:\s*high\b/gm)     || []).length,
+    medium:   (lower.match(/^[\s\-*>]*risk\s*:\s*medium\b/gm)   || []).length,
+    low:      (lower.match(/^[\s\-*>]*risk\s*:\s*low\b/gm)      || []).length,
   };
 
-  // ── Random score: always stays between MIN and MAX, never touches 100 ────
-  const MIN   = 8;
-  const MAX   = 72;                              // hard ceiling well below 100
-  const score = Math.floor(rand() * (MAX - MIN + 1)) + MIN;  // 8 – 72
-
+  console.log('[RiskEngine] Generated random score:', score, counts);
   return { score, counts };
 }
 
