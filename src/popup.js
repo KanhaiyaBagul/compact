@@ -212,14 +212,11 @@ function inProgress(active, failed) {
 
 function setDownloadEnabled(enabled) {
   const downloadBtn = document.getElementById('download-btn');
-  const downloadMdBtn = document.getElementById('download-md-btn');
-  [downloadBtn, downloadMdBtn].forEach((btn) => {
-    if (btn) {
-      btn.disabled = !enabled;
-      btn.classList.toggle('opacity-50', !enabled);
-      btn.classList.toggle('shadow-none', !enabled);
-    }
-  });
+  if (downloadBtn) {
+    downloadBtn.disabled = !enabled;
+    downloadBtn.classList.toggle('opacity-50', !enabled);
+    downloadBtn.classList.toggle('shadow-none', !enabled);
+  }
 }
 
 async function getSettings() {
@@ -1068,65 +1065,100 @@ function downloadReportPdf() {
   const resultEl = document.getElementById('result');
   const riskScore = document.getElementById('risk-score-num')?.textContent || '--';
   const riskLevel = document.getElementById('risk-level-tag')?.textContent || 'UNKNOWN';
-  if (!resultEl || !resultEl.innerText.trim()) return;
+  if (!resultEl || !staticMarkdown) return;
 
   const now = new Date();
-  const sep = '================================================================================';
-  const subSep = '--------------------------------------------------------------------------------';
+  const repoName = currentReportMeta.url ? currentReportMeta.url.split('github.com/')[1] : 'Security Review';
   
-  const lines = [
-    sep,
-    '                          COMPACT AI CODE REVIEW REPORT',
-    sep,
-    '',
-    `  GENERATED: ${now.toLocaleString()}`,
-    `  TARGET:    ${currentReportMeta.url || 'N/A'}`,
-    `  MODE:      ${currentReportMeta.mode === 'repo' ? 'Repository Scan' : 'Pull Request Review'}`,
-    `  BRANCH:    ${currentReportMeta.branch || 'N/A'}`,
-    '',
-    subSep,
-    '  DASHBOARD SUMMARY',
-    subSep,
-    `  [!] RISK SCORE: ${riskScore}/100    LEVEL: ${riskLevel}`,
-    '',
-    `  Files Analyzed:  ${currentReportMeta.files.length}`,
-    `  Total Additions: ${currentReportMeta.totalAdditions}`,
-    `  Total Deletions: ${currentReportMeta.totalDeletions}`,
-    ...(currentReportMeta.mode === 'repo' ? [`  Files Skipped:   ${currentReportMeta.skippedFiles}`] : []),
-    '',
-    subSep,
-    '  INCLUDED FILES',
-    subSep,
-    ...(currentReportMeta.files.length
-      ? currentReportMeta.files.map((f) => `  - ${f.path.padEnd(45)} (+${f.additions} / -${f.deletions})`)
-      : ['  No file stats available']),
-    '',
-    subSep,
-    '  DETAILED ANALYSIS',
-    subSep,
-    '',
-    ...resultEl.innerText.split('\n').map(line => `  ${line}`),
-    '',
-    sep,
-    '                          END OF COMPACT AI REPORT',
-    sep,
-  ];
+  // HTML Template for the Pretty Report
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Compact AI Report - ${repoName}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Inter:wght@400;600&family=JetBrains+Mono&display=swap');
+    body { font-family: 'Inter', sans-serif; padding: 50px; color: #0f172a; max-width: 900px; margin: auto; line-height: 1.6; background: #fff; }
+    .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #f1f5f9; padding-bottom: 25px; margin-bottom: 40px; }
+    .logo { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; color: #4f8ef7; letter-spacing: -0.02em; }
+    .logo span { color: #94a3b8; font-weight: 300; }
+    .date { font-size: 13px; color: #64748b; font-family: 'JetBrains Mono', monospace; }
+    
+    .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 50px; }
+    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; text-align: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
+    .risk-num { font-family: 'Space Grotesk', sans-serif; font-size: 48px; font-weight: 700; color: #ef4444; line-height: 1; margin-bottom: 4px; }
+    .risk-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: #64748b; margin-bottom: 8px; }
+    .stat-num { font-size: 28px; font-weight: 600; color: #1e293b; }
+    
+    .content { background: white; }
+    .content h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 700; color: #0f172a; margin-top: 40px; border-left: 5px solid #4f8ef7; padding-left: 15px; }
+    .content h2 { font-family: 'Space Grotesk', sans-serif; font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-top: 30px; display: flex; align-items: center; gap: 10px; }
+    .content h2::before { content: ''; width: 12px; height: 12px; background: #6366f1; border-radius: 3px; }
+    
+    pre { background: #0f172a; color: #e2e8f0; border-radius: 12px; padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; margin: 20px 0; border: 1px solid #1e293b; }
+    code:not(pre code) { background: #f1f5f9; padding: 3px 6px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #ef4444; }
+    
+    blockquote { border-left: 5px solid #8b5cf6; background: #f5f3ff; margin: 25px 0; padding: 20px 30px; border-radius: 0 12px 12px 0; font-style: italic; color: #4c1d95; }
+    
+    ul { padding-left: 20px; }
+    li { margin-bottom: 8px; }
+    
+    @media print {
+      body { padding: 0; }
+      .card { box-shadow: none; border: 2px solid #f1f5f9; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">COMPACT <span>AI ANALYZER</span></div>
+    <div class="date">${now.toLocaleDateString()} // ${now.toLocaleTimeString()}</div>
+  </div>
 
-  const wrappedLines = wrapLines(lines, 95);
-  const pdfBytes = createPdfFromLines(wrappedLines);
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-  const downloadUrl = URL.createObjectURL(blob);
+  <div class="dashboard">
+    <div class="card">
+      <div class="risk-label">Security Risk</div>
+      <div class="risk-num" style="color: \${getRiskColor(riskScore)}">${riskScore}</div>
+      <div style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Rating: ${riskLevel}</div>
+    </div>
+    <div class="card">
+      <div class="risk-label">Files Analyzed</div>
+      <div class="stat-num">${currentReportMeta.files.length}</div>
+      <div style="font-size: 11px; color: #94a3b8;">CODEBASE SNAPSHOT</div>
+    </div>
+    <div class="card">
+      <div class="risk-label">Delta Metrics</div>
+      <div class="stat-num">+${currentReportMeta.totalAdditions} / -${currentReportMeta.totalDeletions}</div>
+      <div style="font-size: 11px; color: #94a3b8;">LINES CHANGED</div>
+    </div>
+  </div>
 
-  const a = document.createElement('a');
-  const safeName = sanitizeFileName(
-    currentReportMeta.title || 'compact-review-report'
-  );
-  a.href = downloadUrl;
-  a.download = `${safeName}-${now.getTime()}.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(downloadUrl);
+  <div class="content">
+    ${resultEl.innerHTML}
+  </div>
+
+  <div style="margin-top: 60px; text-align: center; border-top: 2px solid #f1f5f9; padding-top: 30px; font-size: 11px; color: #94a3b8; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em;">
+    CONFIDENTIAL // GENERATED BY COMPACT AI ENGINE // END OF REPORT
+  </div>
+
+  <script>
+    function getRiskColor(score) {
+      if (score >= 70) return '#ef4444';
+      if (score >= 45) return '#fb923c';
+      if (score >= 20) return '#fbbf24';
+      return '#22c55e';
+    }
+    window.onload = () => {
+      setTimeout(() => { window.print(); }, 500);
+    };
+  </script>
+</body>
+</html>
+  \`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  chrome.tabs.create({ url });
 }
 
 function sanitizeFileName(input) {
@@ -1138,132 +1170,6 @@ function sanitizeFileName(input) {
     .slice(0, 80);
 }
 
-function downloadReportMd() {
-  const resultEl = document.getElementById('result');
-  if (!resultEl || !staticMarkdown) return;
-
-  const now = new Date();
-  const header = [
-    `# Compact AI Review Report`,
-    `> **Generated**: ${now.toLocaleString()}`,
-    `> **Target**: ${currentReportMeta.url || 'Repository'}`,
-    `> **Mode**: ${currentReportMeta.mode === 'repo' ? 'Repository Scan' : 'Pull Request Review'}`,
-    `> **Risk Score**: ${document.getElementById('risk-score-num')?.textContent || '--'}/100`,
-    ``,
-    `---`,
-    ``,
-    `## Context Overview`,
-    `- **Files Analyzed**: ${currentReportMeta.files.length}`,
-    `- **Total Additions**: ${currentReportMeta.totalAdditions}`,
-    `- **Total Deletions**: ${currentReportMeta.totalDeletions}`,
-    currentReportMeta.mode === 'repo' ? `- **Files Skipped**: ${currentReportMeta.skippedFiles}` : '',
-    ``,
-    `### Files Included`,
-    ...currentReportMeta.files.map(f => `- \`${f.path}\` (+${f.additions} / -${f.deletions})`),
-    ``,
-    `---`,
-    ``,
-    staticMarkdown
-  ].join('\n');
-
-  const blob = new Blob([header], { type: 'text/markdown' });
-  const downloadUrl = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = downloadUrl;
-  a.download = `Compact_Review_${currentReportMeta.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'report'}.md`;
-  a.click();
-  URL.revokeObjectURL(downloadUrl);
-}
-
-function wrapLines(lines, maxChars) {
-  const wrapped = [];
-  for (const line of lines) {
-    if (!line) {
-      wrapped.push('');
-      continue;
-    }
-    let remaining = line;
-    while (remaining.length > maxChars) {
-      const splitAt = remaining.lastIndexOf(' ', maxChars);
-      const index = splitAt > 0 ? splitAt : maxChars;
-      wrapped.push(remaining.slice(0, index));
-      remaining = remaining.slice(index).trimStart();
-    }
-    wrapped.push(remaining);
-  }
-  return wrapped;
-}
-
-function escapePdfText(text) {
-  return text
-    .replace(/\\/g, '\\\\')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)');
-}
-
-function createPdfFromLines(lines) {
-  const linesPerPage = 52;
-  const pages = [];
-  for (let i = 0; i < lines.length; i += linesPerPage) {
-    pages.push(lines.slice(i, i + linesPerPage));
-  }
-
-  const objects = [];
-  objects.push('<< /Type /Catalog /Pages 2 0 R >>');
-
-  const pageObjectIds = [];
-  const contentObjectIds = [];
-  let nextId = 3;
-  for (let i = 0; i < pages.length; i++) {
-    pageObjectIds.push(nextId++);
-    contentObjectIds.push(nextId++);
-  }
-  const fontObjectId = nextId++;
-
-  objects.push(
-    `<< /Type /Pages /Kids [${pageObjectIds
-      .map((id) => `${id} 0 R`)
-      .join(' ')}] /Count ${pageObjectIds.length} >>`
-  );
-
-  for (let i = 0; i < pages.length; i++) {
-    objects.push(
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontObjectId} 0 R >> >> /Contents ${contentObjectIds[i]} 0 R >>`
-    );
-
-    const body = [
-      'BT',
-      '/F1 10 Tf',
-      '14 TL',
-      '50 760 Td',
-      ...pages[i].map((line) => `(${escapePdfText(line)}) Tj T*`),
-      'ET',
-    ].join('\n');
-    objects.push(`<< /Length ${body.length} >>\nstream\n${body}\nendstream`);
-  }
-
-  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
-
-  let pdf = '%PDF-1.4\n';
-  const offsets = [0];
-  for (let i = 0; i < objects.length; i++) {
-    offsets.push(pdf.length);
-    pdf += `${i + 1} 0 obj\n${objects[i]}\nendobj\n`;
-  }
-
-  const xrefStart = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += '0000000000 65535 f \n';
-  for (let i = 1; i < offsets.length; i++) {
-    pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
-  }
-  pdf += `trailer\n<< /Size ${
-    objects.length + 1
-  } /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
-
-  return new TextEncoder().encode(pdf);
-}
-
 const runButton = document.getElementById('rerun-btn');
 if (runButton) {
   runButton.addEventListener('click', () => run(true));
@@ -1271,10 +1177,6 @@ if (runButton) {
 const downloadButton = document.getElementById('download-btn');
 if (downloadButton) {
   downloadButton.addEventListener('click', downloadReportPdf);
-}
-const downloadMdButton = document.getElementById('download-md-btn');
-if (downloadMdButton) {
-  downloadMdButton.addEventListener('click', downloadReportMd);
 }
 const chatToggleBtn = document.getElementById('chat-toggle-btn');
 if (chatToggleBtn) {
