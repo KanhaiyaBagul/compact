@@ -5,83 +5,108 @@
     <title>Compact AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   </head>
-  <body class="p-3 bg-transparent text-slate-100">
-    <div class="dark-container flex h-full">
+  <body>
+    <div class="shell">
 
       <!-- ── Sidebar ── -->
-      <aside class="sidebar w-64 border-r border-white/5 p-5 flex flex-col gap-4 shrink-0">
+      <aside class="sidebar">
 
         <!-- Logo -->
-        <div class="flex items-center gap-3">
-          <div class="logo-icon w-9 h-9 rounded-lg flex items-center justify-center shrink-0">
-            <span class="text-white font-bold text-lg font-space">C</span>
+        <div class="logo-row">
+          <div class="logo-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 6L3 12L8 18" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 6L21 12L16 18" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M14 4L10 20" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round"/>
+            </svg>
           </div>
-          <h1 class="text-lg font-bold text-white font-space tracking-wide">Compact</h1>
+          <div>
+            <h1 class="logo-title">Compact</h1>
+            <p class="logo-sub">AI Code Review</p>
+          </div>
         </div>
 
         <!-- Current Target -->
-        <div class="dark-card flex flex-col gap-1.5">
-          <span class="section-label">Current Target</span>
-          <span id="pr-url" class="text-xs text-blue-400 truncate font-mono">Loading...</span>
+        <div class="s-card target-card">
+          <span class="s-label">Scanning</span>
+          <span id="pr-url" class="target-url">Loading...</span>
         </div>
 
         <!-- Risk Gauge -->
-        <div class="dark-card flex flex-col items-center gap-3">
-          <span class="section-label self-start">Risk Score</span>
+        <div class="s-card gauge-card">
+          <div class="gauge-header">
+            <span class="s-label">Risk Score</span>
+            <span class="gauge-tag" id="risk-level-tag">—</span>
+          </div>
 
-          <!-- SVG Circular Gauge -->
-          <div class="relative w-[120px] h-[120px]">
-            <svg viewBox="0 0 120 120" class="w-full h-full" style="transform: rotate(-90deg);">
+          <!-- SVG Gauge -->
+          <div class="gauge-wrap">
+            <svg viewBox="0 0 120 120" class="gauge-svg">
+              <!-- Subtle glow filter -->
+              <defs>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                  <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
               <!-- Track -->
-              <circle cx="60" cy="60" r="48" fill="none" stroke="#1f1f1f" stroke-width="10"/>
+              <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="8"/>
+              <!-- Tick marks -->
+              <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8"
+                stroke-dasharray="2 12.5" stroke-linecap="round"/>
               <!-- Active arc -->
               <circle id="risk-arc"
-                cx="60" cy="60" r="48"
+                cx="60" cy="60" r="46"
                 fill="none"
                 stroke="#22c55e"
-                stroke-width="10"
-                stroke-dasharray="0 301.6"
+                stroke-width="8"
+                stroke-dasharray="0 289.0"
                 stroke-linecap="round"
-                style="transition: stroke-dasharray 1s ease, stroke 0.6s ease;"/>
+                filter="url(#glow)"
+                style="transition: stroke-dasharray 1.2s cubic-bezier(0.34,1.56,0.64,1), stroke 0.6s ease; transform: rotate(-90deg); transform-origin: 60px 60px;"/>
             </svg>
             <!-- Center label -->
-            <div class="absolute inset-0 flex flex-col items-center justify-center">
-              <span id="risk-score-num" class="text-3xl font-bold text-white font-space leading-none" style="transition: color 0.6s ease;">--</span>
-              <span class="text-[9px] text-zinc-600 uppercase tracking-widest mt-1">Risk</span>
+            <div class="gauge-center">
+              <span id="risk-score-num" class="gauge-num">--</span>
+              <span class="gauge-label">/ 100</span>
             </div>
           </div>
 
           <!-- Risk pills -->
-          <div id="risk-pills" class="flex flex-wrap gap-1.5 justify-center">
-            <span class="text-[10px] text-zinc-600 italic">Run a review to see risk</span>
+          <div id="risk-pills" class="risk-pill-row">
+            <span class="no-risk-text">Run a review to see risk</span>
           </div>
         </div>
 
         <!-- Status -->
-        <div id="status-panel" class="dark-card flex items-center gap-2.5">
-          <div id="status-icon" class="text-blue-400 flex-shrink-0"></div>
-          <span class="text-xs text-zinc-400 font-medium">System Ready</span>
+        <div id="status-panel" class="s-card status-card">
+          <div id="status-icon" class="status-icon-wrap"></div>
+          <span class="status-text">System Ready</span>
         </div>
 
         <!-- Spacer -->
         <div class="flex-grow"></div>
 
         <!-- Model Active Badge -->
-        <div id="stats-badge" class="hidden model-badge text-center text-[10px] px-2.5 py-1 rounded-full font-bold tracking-widest">
-          ◉ MODEL ACTIVE
+        <div id="stats-badge" class="model-badge hidden">
+          <span class="model-dot"></span>
+          Model Active
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex flex-col gap-2">
-          <button id="rerun-btn" type="button" class="btn-primary w-full text-xs">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+        <div class="btn-stack">
+          <button id="rerun-btn" type="button" class="btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61 5.002 5.002 0 008.715 1.333H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
             </svg>
             Refresh Review
           </button>
-          <button id="download-btn" disabled class="btn-secondary w-full text-xs">
+          <button id="download-btn" disabled class="btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
             Export PDF
           </button>
         </div>
@@ -89,25 +114,39 @@
       </aside>
 
       <!-- ── Main Content ── -->
-      <main class="flex-grow p-5 flex flex-col gap-3 overflow-hidden main-content">
+      <main class="main-panel">
 
-        <!-- Header -->
-        <div class="flex justify-between items-center shrink-0">
-          <h2 class="text-[10px] font-semibold text-zinc-600 tracking-widest uppercase">AI Code Analysis</h2>
-          <button id="chat-toggle-btn" class="btn-ghost text-[11px] px-3 py-1.5">Open Chat</button>
+        <!-- Top Bar -->
+        <div class="topbar">
+          <div class="topbar-left">
+            <div class="topbar-dot"></div>
+            <span class="topbar-title">AI Code Analysis</span>
+          </div>
+          <button id="chat-toggle-btn" class="btn-ghost">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            Chat
+          </button>
         </div>
 
         <!-- Scrollable Result -->
-        <div class="flex-grow overflow-y-auto custom-scrollbar pr-1 min-h-0">
-          <div id="result" class="animate-fade leading-relaxed"></div>
+        <div class="result-scroll custom-scrollbar">
+          <div id="result" class="result-body animate-fade"></div>
         </div>
 
         <!-- Chat Panel -->
-        <div id="chat-panel" class="hidden border-t border-white/5 pt-3 flex flex-col gap-2 shrink-0">
-          <div id="chat-messages" class="max-h-36 overflow-y-auto space-y-2 custom-scrollbar pr-1"></div>
-          <div class="flex gap-2">
-            <input id="chat-input" type="text" placeholder="Ask about this review..." class="chat-input flex-grow text-xs py-2 px-3"/>
-            <button id="chat-send" class="btn-primary px-4 py-2 text-xs shrink-0">Send</button>
+        <div id="chat-panel" class="chat-panel hidden">
+          <div class="chat-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            Ask about this review
+          </div>
+          <div id="chat-messages" class="chat-messages custom-scrollbar"></div>
+          <div class="chat-compose">
+            <input id="chat-input" type="text" placeholder="Ask a follow-up question..." class="chat-input"/>
+            <button id="chat-send" class="btn-send">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
           </div>
         </div>
 
@@ -118,15 +157,632 @@
     <script src="popup.js"></script>
 
     <style>
-      body      { font-family: 'Inter', sans-serif; background: #0d0d0d; }
-      .font-space { font-family: 'Space Grotesk', sans-serif; }
-      .font-mono, code, pre { font-family: 'JetBrains Mono', monospace; }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-      /* Thin dark scrollbar */
-      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      :root {
+        --bg:           #0a0a0f;
+        --sidebar:      #0e0e16;
+        --main:         #09090e;
+        --card:         #13131e;
+        --card-hi:      #181826;
+        --border:       rgba(255,255,255,0.055);
+        --border-hi:    rgba(255,255,255,0.12);
+        --blue:         #4f8ef7;
+        --blue-dim:     rgba(79,142,247,0.15);
+        --purple:       #8b5cf6;
+        --purple-dim:   rgba(139,92,246,0.12);
+        --text:         #c4cce0;
+        --text-hi:      #e8edf8;
+        --text-dim:     #4a5070;
+        --green:        #34d399;
+        --amber:        #fbbf24;
+        --orange:       #fb923c;
+        --red:          #f87171;
+        --font-sans: 'Inter', 'Segoe UI', system-ui, sans-serif;
+        --font-head: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+        --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      }
+
+      body {
+        font-family: var(--font-sans);
+        background: var(--bg);
+        color: var(--text);
+        min-width: 860px;
+        min-height: 580px;
+        display: flex;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* ── Shell ── */
+      .shell {
+        display: flex;
+        width: 100%;
+        height: 580px;
+        background: var(--sidebar);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset;
+      }
+
+      /* ── Sidebar ── */
+      .sidebar {
+        width: 240px;
+        min-width: 240px;
+        background: var(--sidebar);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 18px 14px;
+        position: relative;
+        overflow: hidden;
+      }
+      /* Subtle ambient glow behind sidebar */
+      .sidebar::before {
+        content: '';
+        position: absolute;
+        top: -60px; left: -60px;
+        width: 220px; height: 220px;
+        background: radial-gradient(circle, rgba(79,142,247,0.06) 0%, transparent 70%);
+        pointer-events: none;
+      }
+
+      .flex-grow { flex: 1; }
+
+      /* Logo */
+      .logo-row {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 2px 4px 8px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 2px;
+      }
+      .logo-icon {
+        width: 36px; height: 36px;
+        background: linear-gradient(140deg, #4f8ef7, #8b5cf6);
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 0 20px rgba(79,142,247,0.3), 0 4px 12px rgba(0,0,0,0.4);
+        flex-shrink: 0;
+      }
+      .logo-title {
+        font-family: var(--font-head);
+        font-weight: 700;
+        font-size: 15px;
+        color: var(--text-hi);
+        letter-spacing: 0.02em;
+      }
+      .logo-sub {
+        font-size: 9px;
+        color: var(--text-dim);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-top: 1px;
+      }
+
+      /* Sidebar Cards */
+      .s-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 12px;
+      }
+      .s-label {
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        display: block;
+        margin-bottom: 5px;
+      }
+
+      .target-card { padding: 10px 12px; }
+      .target-url {
+        font-family: var(--font-mono);
+        font-size: 9.5px;
+        color: var(--blue);
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.4;
+      }
+
+      /* Gauge */
+      .gauge-card { padding: 12px 12px; }
+      .gauge-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .gauge-tag {
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 2px 8px;
+      }
+      .gauge-wrap {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 10px;
+      }
+      .gauge-svg {
+        width: 100%;
+        height: 100%;
+      }
+      .gauge-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .gauge-num {
+        font-family: var(--font-head);
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-hi);
+        line-height: 1;
+        transition: color 0.6s ease;
+      }
+      .gauge-label {
+        font-size: 8.5px;
+        color: var(--text-dim);
+        margin-top: 2px;
+      }
+      .risk-pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        justify-content: center;
+        min-height: 20px;
+      }
+      .no-risk-text {
+        font-size: 9px;
+        color: var(--text-dim);
+        font-style: italic;
+      }
+
+      /* Status */
+      .status-card {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 9px 12px;
+      }
+      .status-icon-wrap { color: var(--blue); flex-shrink: 0; display: flex; align-items: center; }
+      .status-text { font-size: 11px; color: var(--text); font-weight: 500; }
+
+      /* Model badge */
+      .model-badge {
+        border: 1px solid rgba(52,211,153,0.2);
+        background: rgba(52,211,153,0.06);
+        color: var(--green);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        border-radius: 20px;
+        padding: 5px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        text-align: center;
+      }
+      .model-badge.hidden { display: none; }
+      .model-dot {
+        width: 6px; height: 6px;
+        background: var(--green);
+        border-radius: 50%;
+        box-shadow: 0 0 6px var(--green);
+        animation: pulse-dot 2s ease infinite;
+      }
+      @keyframes pulse-dot {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+
+      /* Buttons */
+      .btn-stack { display: flex; flex-direction: column; gap: 7px; }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #4f8ef7 0%, #8b5cf6 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-family: var(--font-sans);
+        font-size: 11.5px;
+        font-weight: 600;
+        padding: 9px 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 18px rgba(79,142,247,0.25);
+        letter-spacing: 0.01em;
+      }
+      .btn-primary:hover:not(:disabled) {
+        transform: translateY(-1.5px);
+        box-shadow: 0 8px 28px rgba(79,142,247,0.4);
+        filter: brightness(1.08);
+      }
+      .btn-primary:active:not(:disabled) { transform: scale(0.97); }
+      .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+      .btn-secondary {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-family: var(--font-sans);
+        font-size: 11.5px;
+        font-weight: 500;
+        padding: 9px 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        transition: all 0.2s ease;
+      }
+      .btn-secondary:hover:not(:disabled) {
+        border-color: var(--border-hi);
+        color: var(--text-hi);
+        background: var(--card-hi);
+      }
+      .btn-secondary:disabled { opacity: 0.3; cursor: not-allowed; }
+
+      /* ── Main Panel ── */
+      .main-panel {
+        flex: 1;
+        background: var(--main);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+
+      /* Top bar */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 18px 10px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+        background: var(--main);
+      }
+      .topbar-left { display: flex; align-items: center; gap: 8px; }
+      .topbar-dot {
+        width: 7px; height: 7px;
+        background: var(--blue);
+        border-radius: 50%;
+        box-shadow: 0 0 8px rgba(79,142,247,0.6);
+      }
+      .topbar-title {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+
+      .btn-ghost {
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text-dim);
+        font-family: var(--font-sans);
+        font-size: 10.5px;
+        font-weight: 500;
+        padding: 5px 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.2s ease;
+      }
+      .btn-ghost:hover {
+        border-color: var(--border-hi);
+        color: var(--text);
+        background: var(--card);
+      }
+
+      /* Result Scroll */
+      .result-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px 20px;
+        min-height: 0;
+      }
+      .result-body {
+        line-height: 1.7;
+      }
+
+      /* ── Result markdown ── */
+      .result-body h1 {
+        font-family: var(--font-head);
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text-hi);
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 8px;
+        margin: 20px 0 12px;
+      }
+      .result-body h2 {
+        font-family: var(--font-head);
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--text-hi);
+        margin: 18px 0 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .result-body h2::before {
+        content: '';
+        width: 3px; height: 14px;
+        background: linear-gradient(135deg, var(--blue), var(--purple));
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+      .result-body h3 {
+        font-family: var(--font-head);
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #a78bfa;
+        margin: 12px 0 6px;
+        padding: 4px 10px;
+        background: rgba(139,92,246,0.07);
+        border-left: 3px solid rgba(139,92,246,0.4);
+        border-radius: 0 6px 6px 0;
+      }
+      .result-body p {
+        font-size: 0.8rem;
+        color: var(--text);
+        margin-bottom: 10px;
+        line-height: 1.75;
+      }
+      .result-body ul {
+        list-style: none;
+        padding: 0;
+        margin: 6px 0 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .result-body li {
+        font-size: 0.8rem;
+        color: var(--text);
+        padding-left: 20px;
+        position: relative;
+        line-height: 1.6;
+      }
+      .result-body li::before {
+        content: '→';
+        position: absolute;
+        left: 0;
+        color: var(--blue);
+        font-weight: 700;
+        font-size: 0.75rem;
+      }
+      .result-body a { color: var(--blue); text-decoration: underline; }
+      .result-body hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+      .result-body strong { color: var(--text-hi); font-weight: 700; }
+
+      .result-body blockquote {
+        border-left: 3px solid var(--purple);
+        background: rgba(139,92,246,0.06);
+        border-radius: 0 8px 8px 0;
+        padding: 8px 14px;
+        margin: 10px 0;
+        font-size: 0.76rem;
+        color: var(--text);
+        font-style: italic;
+      }
+
+      .result-body code:not(.language-mermaid):not(.mermaid) {
+        background: rgba(79,142,247,0.1);
+        border: 1px solid rgba(79,142,247,0.2);
+        color: #93c5fd;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        padding: 1px 6px;
+        border-radius: 5px;
+      }
+
+      .result-body pre {
+        background: #080b14 !important;
+        border: 1px solid rgba(255,255,255,0.07);
+        border-left: 3px solid var(--blue);
+        border-radius: 10px;
+        margin: 12px 0;
+        overflow-x: auto;
+        position: relative;
+        padding-top: 2.4rem;
+      }
+      .result-body pre code {
+        background: transparent !important;
+        border: none !important;
+        color: #c9d8f0;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        line-height: 1.7;
+        display: block;
+        padding: 4px 16px 16px;
+      }
+
+      /* ── Code overlays ── */
+      .code-lang-badge {
+        position: absolute;
+        top: 9px; left: 12px;
+        background: rgba(79,142,247,0.15);
+        border: 1px solid rgba(79,142,247,0.25);
+        color: #93c5fd;
+        font-family: var(--font-mono);
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 5px;
+      }
+      .code-copy-btn {
+        position: absolute;
+        top: 7px; right: 10px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.08);
+        color: var(--text-dim);
+        font-family: var(--font-mono);
+        font-size: 8.5px;
+        border-radius: 6px;
+        padding: 3px 9px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .code-copy-btn:hover { border-color: var(--blue); color: white; background: var(--blue); }
+
+      /* ── Badges ── */
+      .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 6px; }
+      .badge-error   { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.25); color: #f87171; }
+      .badge-warning { background: rgba(251,191,36,0.12);  border: 1px solid rgba(251,191,36,0.25);  color: #fbbf24; }
+      .badge-success { background: rgba(52,211,153,0.12);  border: 1px solid rgba(52,211,153,0.25);  color: var(--green); }
+      .badge-info    { background: rgba(79,142,247,0.12);  border: 1px solid rgba(79,142,247,0.25);  color: var(--blue); }
+
+      /* ── Risk Pills ── */
+      .risk-pill {
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .risk-pill-critical { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.25); color: var(--red); }
+      .risk-pill-high     { background: rgba(251,146,60,0.12);  border: 1px solid rgba(251,146,60,0.25);  color: var(--orange); }
+      .risk-pill-medium   { background: rgba(251,191,36,0.12);  border: 1px solid rgba(251,191,36,0.25);  color: var(--amber); }
+      .risk-pill-low      { background: rgba(52,211,153,0.12);  border: 1px solid rgba(52,211,153,0.25);  color: var(--green); }
+
+      /* ── Mermaid ── */
+      .mermaid {
+        display: flex;
+        justify-content: center;
+        margin: 16px 0;
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid rgba(255,255,255,0.08);
+        overflow-x: auto;
+        animation: fadeIn 0.4s ease-out;
+      }
+      .mermaid svg { max-width: 100%; height: auto; }
+
+      /* ── Chat Panel ── */
+      .chat-panel {
+        border-top: 1px solid var(--border);
+        background: var(--sidebar);
+        padding: 10px 14px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .chat-panel.hidden { display: none; }
+      .chat-header {
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .chat-messages {
+        max-height: 130px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .chat-compose {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .chat-input {
+        flex: 1;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        color: var(--text-hi);
+        font-family: var(--font-sans);
+        font-size: 11px;
+        padding: 8px 12px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .chat-input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(79,142,247,0.12); }
+      .chat-input::placeholder { color: var(--text-dim); }
+      .btn-send {
+        width: 32px; height: 32px;
+        background: var(--blue);
+        border: none;
+        border-radius: 9px;
+        color: white;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.2s;
+        box-shadow: 0 2px 12px rgba(79,142,247,0.3);
+      }
+      .btn-send:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+      /* chat bubbles */
+      .chat-bubble { font-size: 11px; padding: 7px 11px; border-radius: 10px; max-width: 85%; line-height: 1.5; }
+      .chat-bubble.user { background: rgba(79,142,247,0.12); border: 1px solid rgba(79,142,247,0.2); color: #93c5fd; margin-left: auto; }
+      .chat-bubble.assistant { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+      .chat-bubble.system { background: transparent; color: var(--text-dim); font-style: italic; font-size: 10px; text-align: center; max-width: 100%; }
+
+      /* scrollbar */
+      .custom-scrollbar::-webkit-scrollbar { width: 3px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 10px; }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+
+      /* animations */
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade { animation: fadeIn 0.35s ease-out forwards; }
+
+      /* live stream */
+      .live-stream {
+        background: transparent;
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        line-height: 1.75;
+        white-space: pre-wrap;
+      }
     </style>
   </body>
 </html>

@@ -53,20 +53,22 @@ function updateRiskGauge(score, counts) {
   const numEl   = document.getElementById('risk-score-num');
   const arcEl   = document.getElementById('risk-arc');
   const pillsEl = document.getElementById('risk-pills');
+  const tagEl   = document.getElementById('risk-level-tag');
   if (!numEl || !arcEl || !pillsEl) return;
 
   numEl.textContent = score;
 
-  const circumference = 2 * Math.PI * 48; // r = 48
+  const circumference = 2 * Math.PI * 46; // r = 46
   const filled = (score / 100) * circumference;
   arcEl.setAttribute('stroke-dasharray', `${filled.toFixed(1)} ${circumference.toFixed(1)}`);
 
-  let color = '#22c55e'; // green – low
-  if (score >= 70)      color = '#ef4444'; // red    – critical
-  else if (score >= 45) color = '#f97316'; // orange – high
-  else if (score >= 20) color = '#f59e0b'; // yellow – medium
+  let color = '#34d399'; let label = 'Low';    // green
+  if (score >= 70)      { color = '#f87171'; label = 'Critical'; }
+  else if (score >= 45) { color = '#fb923c'; label = 'High'; }
+  else if (score >= 20) { color = '#fbbf24'; label = 'Medium'; }
   arcEl.setAttribute('stroke', color);
   numEl.style.color = color;
+  if (tagEl) { tagEl.textContent = label; tagEl.style.color = color; tagEl.style.borderColor = color + '44'; }
 
   const pills = [];
   if (counts.critical > 0) pills.push(`<span class="risk-pill risk-pill-critical">● ${counts.critical} Critical</span>`);
@@ -75,16 +77,19 @@ function updateRiskGauge(score, counts) {
   if (counts.low > 0)      pills.push(`<span class="risk-pill risk-pill-low">● ${counts.low} Low</span>`);
   pillsEl.innerHTML = pills.length
     ? pills.join('')
-    : '<span style="font-size:10px;color:#52525b;font-style:italic">No issues found</span>';
+    : '<span class="no-risk-text">No issues found</span>';
 }
 
 function resetRiskGauge() {
   const numEl   = document.getElementById('risk-score-num');
   const arcEl   = document.getElementById('risk-arc');
   const pillsEl = document.getElementById('risk-pills');
+  const tagEl   = document.getElementById('risk-level-tag');
   if (numEl)   { numEl.textContent = '--'; numEl.style.color = ''; }
-  if (arcEl)   { arcEl.setAttribute('stroke-dasharray', '0 301.6'); arcEl.setAttribute('stroke', '#22c55e'); }
-  if (pillsEl) pillsEl.innerHTML = '<span style="font-size:10px;color:#52525b;font-style:italic">Analyzing...</span>';
+  const circumference = 2 * Math.PI * 46;
+  if (arcEl)   { arcEl.setAttribute('stroke-dasharray', `0 ${circumference.toFixed(1)}`); arcEl.setAttribute('stroke', '#34d399'); }
+  if (pillsEl) pillsEl.innerHTML = '<span class="no-risk-text">Analyzing...</span>';
+  if (tagEl)   { tagEl.textContent = '—'; tagEl.style.color = ''; tagEl.style.borderColor = ''; }
 }
 
 // ══════════════════════════════════════════════
@@ -295,7 +300,7 @@ function ensureResultLayout() {
   if (!resultEl) return null;
   if (!resultEl.querySelector('#result-static')) {
     resultEl.innerHTML =
-      '<div id="result-static"></div><pre id="result-live" class="live-stream hidden"></pre>';
+      '<div id="result-static" class="result-body"></div><pre id="result-live" class="live-stream hidden"></pre>';
   }
   return resultEl;
 }

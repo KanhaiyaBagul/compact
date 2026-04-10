@@ -2,262 +2,103 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design Tokens ─────────────────────────────── */
-:root {
-  --bg-base:     #0d0d0d;
-  --bg-sidebar:  #111111;
-  --bg-main:     #0f0f0f;
-  --bg-card:     #181818;
-  --bg-code:     #0a0a0a;
-  --border:      rgba(255, 255, 255, 0.06);
-  --border-hi:   rgba(255, 255, 255, 0.12);
-  --accent-blue:   #3b82f6;
-  --accent-purple: #8b5cf6;
-  --text-primary:   #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted:     #52525b;
-  --risk-low:      #22c55e;
-  --risk-medium:   #f59e0b;
-  --risk-high:     #f97316;
-  --risk-critical: #ef4444;
-}
+/*
+  styles.css — compiled by Tailwind.
+  Most UI styles are now inline in popup.html for the popup.
+  This file provides shared utilities and any additional Tailwind overrides.
+*/
 
-/* ── Base ───────────────────────────────────────── */
-body {
-  @apply antialiased flex;
-  min-width: 820px;
-  min-height: 580px;
-  background: var(--bg-base);
-  color: var(--text-secondary);
-}
-
-/* ── Shell ──────────────────────────────────────── */
-.dark-container {
-  background: var(--bg-sidebar);
-  border: 1px solid var(--border);
-  @apply rounded-2xl overflow-hidden flex flex-row w-full;
-  box-shadow: 0 25px 60px rgba(0,0,0,0.6);
-  height: 560px;
-}
-
-.sidebar    { background: var(--bg-sidebar); }
-.main-content { background: var(--bg-main); border-left: 1px solid var(--border); }
-
-/* ── Cards ──────────────────────────────────────── */
-.dark-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  @apply rounded-xl p-3;
-}
-
-.section-label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-/* ── Logo ───────────────────────────────────────── */
-.logo-icon {
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-  box-shadow: 0 0 18px rgba(59,130,246,0.35);
-}
-
-/* ── Buttons ────────────────────────────────────── */
-.btn-primary {
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-  @apply text-white font-semibold flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200;
-  box-shadow: 0 4px 18px rgba(59,130,246,0.25);
-}
-.btn-primary:hover:not(:disabled) {
-  @apply -translate-y-0.5;
-  box-shadow: 0 6px 24px rgba(59,130,246,0.4);
-}
-.btn-primary:active:not(:disabled) { @apply scale-95; }
-.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
-
-.btn-secondary {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  @apply text-zinc-400 font-semibold flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200;
-}
-.btn-secondary:hover:not(:disabled) { border-color: var(--border-hi); @apply text-zinc-200; }
-.btn-secondary:disabled { opacity: 0.35; cursor: not-allowed; }
-
-.btn-ghost {
-  background: transparent;
-  border: 1px solid var(--border);
-  @apply text-zinc-500 rounded-lg transition-all duration-200 font-medium;
-}
-.btn-ghost:hover { border-color: var(--border-hi); @apply text-zinc-300; }
-
-/* ── Model Badge ────────────────────────────────── */
-.model-badge {
-  border: 1px solid rgba(34,197,94,0.25);
-  background: rgba(34,197,94,0.07);
-  color: #22c55e;
-  font-size: 9px;
-  letter-spacing: 0.14em;
-}
-
-/* ── Chat ───────────────────────────────────────── */
-.chat-bubble {
-  @apply text-xs px-3 py-2 rounded-xl max-w-[85%];
-}
-.chat-bubble.user {
-  background: rgba(59,130,246,0.12);
-  border: 1px solid rgba(59,130,246,0.2);
-  @apply text-blue-300 ml-auto;
-}
-.chat-bubble.assistant {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  @apply text-zinc-300;
-}
-.chat-bubble.system {
-  background: transparent;
-  @apply text-zinc-600 italic text-[10px] text-center w-full max-w-full;
-}
-
-.chat-input {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  @apply rounded-xl transition-all duration-200 outline-none;
-}
-.chat-input:focus {
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 2px rgba(59,130,246,0.12);
-}
-.chat-input::placeholder { color: var(--text-muted); }
-
-/* ── Animations ─────────────────────────────────── */
+/* ── Animations (used by popup.js) ───────────── */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0);   }
 }
-.animate-fade { animation: fadeIn 0.4s ease-out forwards; }
+.animate-fade { animation: fadeIn 0.35s ease-out forwards; }
 
-/* ── Live Stream Pre ─────────────────────────────── */
+/* ── Live Stream Pre (used by popup.js) ─────── */
 .live-stream {
   background: transparent;
-  color: var(--text-secondary);
+  color: #94a3b8;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   line-height: 1.8;
   white-space: pre-wrap;
 }
 
-/* ═══════════════════════════════════════════════════
-   RESULT / MARKDOWN STYLES (Light Theme Report Format)
-   ═══════════════════════════════════════════════════ */
-#result { color: var(--text-secondary); }
-
-/* Markdown Headings */
-#result h1 { @apply text-2xl font-bold text-slate-900 mt-6 mb-4 font-calistoga border-b border-slate-200 pb-2 transition-colors hover:text-blue-600; }
-#result h2 { @apply text-xl font-bold text-slate-800 mt-5 mb-3 font-calistoga tracking-wide flex items-center gap-2 transition-all hover:translate-x-1; }
-#result h3 { @apply text-base font-semibold text-slate-700 mt-4 mb-2 font-calistoga bg-slate-100/50 px-3 py-1 rounded-lg border-l-4 border-slate-300; }
-
-/* Markdown Body Text */
-#result p  { @apply text-slate-600 leading-relaxed text-sm mb-3; }
-#result ul { @apply list-none space-y-2 my-1 text-sm text-slate-600; }
-#result ul li { @apply pl-6 relative; }
-#result ul li::before { content: '→'; @apply absolute left-0 text-blue-400 font-bold; }
-#result a  { color: var(--accent-blue); @apply underline; }
-#result hr { @apply border-slate-100 my-8; }
-#result strong { color: #1e293b; font-weight: 700; }
-
-/* Blockquotes */
-#result blockquote {
-  @apply border-l-4 border-indigo-500 bg-indigo-50/30 pl-4 py-3 italic text-slate-600 rounded-r-xl my-4 text-xs;
-}
-
-/* ── Inline code ──────────────────── */
-#result code:not(.language-mermaid):not(.mermaid) {
-  background: bg-blue-50/50;
-  color: #2563eb;
-  @apply px-1.5 py-0.5 rounded text-xs font-mono font-medium border border-blue-100;
-}
-
-/* ── Code blocks with Overlays ────────────────── */
-#result pre {
-  background: #0f172a !important; /* Always dark for code */
-  border: 1px solid #1e293b;
-  border-left: 4px solid var(--accent-blue);
-  @apply rounded-2xl my-4 overflow-x-auto shadow-xl;
-  position: relative;
-  padding-top: 2.5rem; /* Space for language badge and copy button */
-}
-
-#result pre code {
-  background: transparent !important;
-  border: none !important;
-  color: #e2e8e0;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  line-height: 1.6;
-  @apply px-5 pb-5 pt-1 block;
-}
-
-/* ── Code block UI overlays ─────────────────────── */
-.code-lang-badge {
-  position: absolute;
-  top: 10px;
-  left: 12px;
-  background: rgba(59,130,246,0.15);
-  border: 1px solid rgba(59,130,246,0.3);
-  color: #60a5fa;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  @apply px-2 py-0.5 rounded;
-}
-
-.code-copy-btn {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #94a3b8;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  cursor: pointer;
-  @apply px-2.5 py-1 rounded-lg transition-all duration-150;
-}
-.code-copy-btn:hover { border-color: var(--accent-blue); color: #fff; background: var(--accent-blue); }
-
-/* ── Status Badges ── */
-.badge { @apply inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter mr-2 shadow-sm; }
-.badge-error   { @apply bg-rose-100 text-rose-600 border border-rose-200; }
-.badge-warning { @apply bg-amber-100 text-amber-600 border border-amber-200; }
-.badge-success { @apply bg-emerald-100 text-emerald-600 border border-emerald-200; }
-.badge-info    { @apply bg-sky-100 text-sky-600 border border-sky-200; }
-
-/* ── Risk Pills ── */
+/* ── Risk Pills (injected by popup.js) ─────── */
 .risk-pill {
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  @apply px-2 py-0.5 rounded-full mr-1.5 inline-flex items-center gap-1;
+  padding: 3px 8px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
-.risk-pill-critical { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: #f87171; }
-.risk-pill-high     { background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.25); color: #fb923c; }
-.risk-pill-medium   { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); color: #fbbf24; }
-.risk-pill-low      { background: rgba(34,197,94,0.12);  border: 1px solid rgba(34,197,94,0.25);  color: #4ade80; }
+.risk-pill-critical { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.25); color: #f87171; }
+.risk-pill-high     { background: rgba(251,146,60,0.12);  border: 1px solid rgba(251,146,60,0.25);  color: #fb923c; }
+.risk-pill-medium   { background: rgba(251,191,36,0.12);  border: 1px solid rgba(251,191,36,0.25);  color: #fbbf24; }
+.risk-pill-low      { background: rgba(52,211,153,0.12);  border: 1px solid rgba(52,211,153,0.25);  color: #34d399; }
 
-/* ── Mermaid Diagrams ── */
-.mermaid { 
-    @apply flex justify-center my-6 bg-white rounded-2xl p-4 border border-slate-100 shadow-sm transition-all duration-300 overflow-x-auto;
-    animation: fadeIn 0.4s ease-out forwards;
+/* ── Status Badges (injected by popup.js) ───── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 6px;
 }
-.mermaid:hover { @apply shadow-md border-slate-200 scale-[1.01]; }
+.badge-error   { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.25); color: #f87171; }
+.badge-warning { background: rgba(251,191,36,0.12);  border: 1px solid rgba(251,191,36,0.25);  color: #fbbf24; }
+.badge-success { background: rgba(52,211,153,0.12);  border: 1px solid rgba(52,211,153,0.25);  color: #34d399; }
+.badge-info    { background: rgba(79,142,247,0.12);  border: 1px solid rgba(79,142,247,0.25);  color: #4f8ef7; }
+
+/* ── Code overlays (injected by popup.js) ───── */
+.code-lang-badge {
+  position: absolute;
+  top: 9px; left: 12px;
+  background: rgba(79,142,247,0.15);
+  border: 1px solid rgba(79,142,247,0.25);
+  color: #93c5fd;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+.code-copy-btn {
+  position: absolute;
+  top: 7px; right: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #4a5070;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8.5px;
+  border-radius: 6px;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.code-copy-btn:hover { border-color: #4f8ef7; color: white; background: #4f8ef7; }
+
+/* ── Mermaid (rendered by popup.js) ─────────── */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow-x: auto;
+  animation: fadeIn 0.4s ease-out;
+}
 .mermaid svg { max-width: 100%; height: auto; }
-
-/* ── Specific File Findings Wrapper ── */
-.file-finding { @apply mb-8 last:mb-0 bg-white/50 rounded-2xl p-1; }
-
