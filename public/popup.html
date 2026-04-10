@@ -223,8 +223,8 @@
         font-family: var(--font-sans);
         background: var(--bg);
         color: var(--text);
-        width: 860px;
-        height: 580px;
+        width: 800px;
+        height: 600px;
         overflow: hidden;
         display: flex;
         -webkit-font-smoothing: antialiased;
@@ -234,8 +234,8 @@
       .shell {
         display: flex;
         flex-direction: column;
-        width: 860px;
-        height: 580px;
+        width: 800px;
+        height: 600px;
         background: var(--main);
         overflow: hidden;
       }
@@ -692,9 +692,11 @@
         border-left: 3px solid var(--blue);
         border-radius: 10px;
         margin: 12px 0;
-        overflow-x: auto;
+        overflow-x: hidden;
         position: relative;
         padding-top: 2.4rem;
+        white-space: pre-wrap;
+        word-break: break-all;
       }
       .result-body pre code {
         background: transparent !important;
@@ -770,7 +772,7 @@
         border-radius: 12px;
         padding: 16px;
         border: 1px solid rgba(255,255,255,0.08);
-        overflow-x: auto;
+        overflow-x: hidden;
         animation: fadeIn 0.4s ease-out;
       }
       .mermaid svg { max-width: 100%; height: auto; }
