@@ -1,7 +1,5 @@
 # Compact: Local-First AI Code Review Suite
 
-![Compact Logo](logo_bg.png)
-
 **Compact** is a comprehensive, local-first AI code review ecosystem designed to provide privacy-preserving, high-quality, and autonomous code analysis. It bridges the gap between manual reviews and automated static analysis by leveraging Large Language Models (LLMs) running locally or in the cloud.
 
 The project consists of two core components:
