@@ -19,6 +19,10 @@
     "attempts": 1,
     "last_attempt": "2026-01-22T15:28:15.682937"
   },
+  "code reviewer/personas/example": {
+    "attempts": 3,
+    "last_attempt": "2026-04-10T10:48:15.505958"
+  },
   "sbin/devmatch": {
     "attempts": 1,
     "last_attempt": "2026-01-25T02:58:58.083790"
