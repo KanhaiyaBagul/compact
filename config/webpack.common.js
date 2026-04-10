@@ -20,6 +20,14 @@ const common = {
     // the filename template for entry chunks
     filename: '[name].js',
   },
+  resolve: {
+    modules: [path.resolve(__dirname, '../node_modules'), 'node_modules'],
+    extensions: ['.js', '.mjs', '.cjs'],
+    conditionNames: ['import', 'module', 'require', 'default'],
+    fallback: {
+      buffer: require.resolve('buffer/'),
+    },
+  },
   stats: {
     all: false,
     errors: true,
@@ -30,16 +38,17 @@ const common = {
   module: {
     rules: [
       // Help webpack in understanding CSS files imported in .js files
-      // {
-      //   test: /\.css$/,
-      //   use: [MiniCssExtractPlugin.loader, 'css-loader'],
-      // },
       {
         test: /\.css$/i,
         include: path.resolve(__dirname, '../src'),
         use: ['style-loader', 'css-loader', 'postcss-loader'],
       },
-      // Check for images imported in .js files and
+      // Handle .mjs / ESM files from packages like mermaid
+      {
+        test: /\.m?js$/,
+        resolve: { fullySpecified: false },
+      },
+      // Check for images imported in .js files
       {
         test: IMAGE_TYPES,
         use: [

@@ -1,4 +1,18 @@
 import './styles.css';
+import mermaid from '../node_modules/mermaid/dist/mermaid.js';
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'default',
+  themeVariables: {
+    primaryColor: '#faf9f6',
+    lineColor: '#3b82f6',
+    textColor: '#1e293b',
+    mainBkg: '#f8fafc',
+    nodeBorder: '#cbd5e1'
+  },
+  fontFamily: 'Inter, sans-serif'
+});
 
 const DIFF_FETCH_TIMEOUT_MS = 15000;
 const OLLAMA_TIMEOUT_MS = null;
@@ -18,6 +32,34 @@ let currentReportMeta = {
   skippedFiles: 0,
 };
 let chatHistory = [];
+
+async function renderMermaidDiagrams() {
+  const resultEl = document.getElementById('result');
+  if (!resultEl) return;
+  
+  // Showdown usually renders ```mermaid as <pre><code class="mermaid language-mermaid">
+  const mermaidBlocks = resultEl.querySelectorAll('code.language-mermaid, code.mermaid');
+  if (mermaidBlocks.length === 0) return;
+
+  for (const block of mermaidBlocks) {
+    const pre = block.parentElement;
+    if (pre && pre.tagName.toLowerCase() === 'pre') {
+      try {
+        const id = `mermaid-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+        const content = block.textContent;
+        const { svg } = await mermaid.render(id, content);
+        
+        const container = document.createElement('div');
+        container.className = 'mermaid-rendered my-4 p-4 bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto flex justify-center';
+        container.innerHTML = svg;
+        
+        pre.parentNode.replaceChild(container, pre);
+      } catch (err) {
+        console.error('Mermaid render error:', err);
+      }
+    }
+  }
+}
 
 function inProgress(active, failed) {
   const btn = document.getElementById('rerun-btn');
@@ -320,7 +362,7 @@ async function reviewPR(diffPath, context, title) {
     let promptArray = [
       `Review the following pull request changes.\n\nTitle: ${title}\n\nChanged files overview:\n${
         fileContext.context
-      }\n\nRespond strictly in markdown with this exact structure:\n## Summary\n(2-4 bullet points)\n## Suggestions\n(3-8 bullet points with actionable improvements)\n## File Findings\n(Use bullets grouped by filename where possible)\n## Detailed Review\n(issues, risks, and notable positives)\n\nCode changes:\n${patch.substring(
+      }\n\nRespond strictly in markdown with this exact structure:\n## Summary\n(2-4 bullet points)\n## Suggestions\n(3-8 bullet points with actionable improvements)\n## Architecture Diagram\n(Visualize the architecture, components, or flow using Mermaid.js syntax inside a \`\`\`mermaid block)\n## File Findings\n(Use bullets grouped by filename where possible)\n## Detailed Review\n(issues, risks, and notable positives)\n\nCode changes:\n${patch.substring(
         0,
         10000
       )}`,
@@ -335,6 +377,8 @@ async function reviewPR(diffPath, context, title) {
     resetRenderedMarkdown('');
     await appendMarkdownProgressive(reviewText);
     commitLiveMarkdown();
+    await renderMermaidDiagrams();
+    
     chrome.storage.session.set({
       [diffPath]: document.getElementById('result').innerHTML,
     });
@@ -573,7 +617,7 @@ async function reviewRepository(owner, repo) {
     const summaryPrompt =
       `You are given file-by-file findings from a repository review.\n` +
       `Create a final markdown report with sections exactly:\n` +
-      `## Summary\n## Suggestions\n## File Findings\n## Potential Bugs\n## Next Steps\n\n` +
+      `## Summary\n## Suggestions\n## Architecture Diagram\n(Visualize the code architecture, components, or flow using Mermaid.js syntax inside a \`\`\`mermaid block)\n## File Findings\n## Potential Bugs\n## Next Steps\n\n` +
       `Repository: ${owner}/${repo}\nBranch: ${repoContext.branch}\n` +
       `Files analyzed: ${repoContext.files.length}\n` +
       `Files skipped due to limit/filter: ${repoContext.skippedFiles}\n\n` +
@@ -586,6 +630,7 @@ async function reviewRepository(owner, repo) {
     );
     await appendMarkdownProgressive(`\n\n---\n\n${finalSummary}\n`);
     commitLiveMarkdown();
+    await renderMermaidDiagrams();
 
     chrome.storage.session.set({
       [`repo:${currentReportMeta.url}`]:
