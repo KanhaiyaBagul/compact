@@ -55,6 +55,73 @@
           </div>
         </div>
 
+        <!-- ── Risk Strip ── -->
+        <div class="risk-strip">
+          <!-- Scanning target -->
+          <div class="risk-strip-item target-item">
+            <span class="rs-label">Scanning</span>
+            <span id="pr-url" class="target-url">Loading...</span>
+          </div>
+
+          <!-- Divider -->
+          <div class="rs-divider"></div>
+
+          <!-- Gauge -->
+          <div class="risk-strip-item gauge-item">
+            <span class="rs-label">Risk Score</span>
+            <div class="rs-gauge-wrap">
+              <svg viewBox="0 0 120 120" class="rs-gauge-svg">
+                <defs>
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                    <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                  </filter>
+                </defs>
+                <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="8"/>
+                <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-dasharray="2 12.5" stroke-linecap="round"/>
+                <circle id="risk-arc"
+                  cx="60" cy="60" r="46"
+                  fill="none"
+                  stroke="#22c55e"
+                  stroke-width="8"
+                  stroke-dasharray="0 289.0"
+                  stroke-linecap="round"
+                  filter="url(#glow)"
+                  style="transition: stroke-dasharray 1.2s cubic-bezier(0.34,1.56,0.64,1), stroke 0.6s ease; transform: rotate(-90deg); transform-origin: 60px 60px;"/>
+              </svg>
+              <div class="rs-gauge-center">
+                <span id="risk-score-num" class="rs-gauge-num">--</span>
+                <span class="rs-gauge-sub">/ 100</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="rs-divider"></div>
+
+          <!-- Risk pills + level tag -->
+          <div class="risk-strip-item pills-item">
+            <div class="rs-pills-header">
+              <span class="rs-label">Risk Level</span>
+              <span class="gauge-tag" id="risk-level-tag">—</span>
+            </div>
+            <div id="risk-pills" class="risk-pill-row">
+              <span class="no-risk-text">Run a review to see risk</span>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="rs-divider"></div>
+
+          <!-- Model badge -->
+          <div class="risk-strip-item">
+            <div id="stats-badge" class="model-badge hidden">
+              <span class="model-dot"></span>
+              Model Active
+            </div>
+          </div>
+        </div>
+
         <!-- Scrollable Result -->
         <div class="result-scroll custom-scrollbar">
           <div id="result" class="result-body animate-fade"></div>
@@ -130,30 +197,76 @@
         box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset;
       }
 
-      /* ── Sidebar ── */
-      .sidebar {
-        width: 240px;
-        min-width: 240px;
-        background: var(--sidebar);
-        border-right: 1px solid var(--border);
+      /* ── Risk Strip ── */
+      .risk-strip {
         display: flex;
-        flex-direction: column;
-        gap: 10px;
-        padding: 18px 14px;
-        position: relative;
+        align-items: center;
+        gap: 0;
+        padding: 8px 18px;
+        border-bottom: 1px solid var(--border);
+        background: var(--sidebar);
+        flex-shrink: 0;
         overflow: hidden;
       }
-      /* Subtle ambient glow behind sidebar */
-      .sidebar::before {
-        content: '';
+      .risk-strip-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 4px 16px;
+      }
+      .target-item { min-width: 0; flex: 1; }
+      .gauge-item { align-items: center; }
+      .pills-item { flex: 1; }
+      .rs-divider {
+        width: 1px;
+        height: 36px;
+        background: var(--border);
+        flex-shrink: 0;
+      }
+      .rs-label {
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+      .rs-pills-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* Gauge (compact inline) */
+      .rs-gauge-wrap {
+        position: relative;
+        width: 52px;
+        height: 52px;
+      }
+      .rs-gauge-svg { width: 100%; height: 100%; }
+      .rs-gauge-center {
         position: absolute;
-        top: -60px; left: -60px;
-        width: 220px; height: 220px;
-        background: radial-gradient(circle, rgba(79,142,247,0.06) 0%, transparent 70%);
-        pointer-events: none;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .rs-gauge-num {
+        font-family: var(--font-head);
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-hi);
+        line-height: 1;
+        transition: color 0.6s ease;
+      }
+      .rs-gauge-sub {
+        font-size: 7px;
+        color: var(--text-dim);
+        margin-top: 1px;
       }
 
       .flex-grow { flex: 1; }
+
 
       /* Logo */
       .logo-row {
