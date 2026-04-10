@@ -27,18 +27,36 @@ function computeRiskScore(markdown) {
   const t = (markdown || '').toLowerCase();
   const counts = { critical: 0, high: 0, medium: 0, low: 0 };
 
-  counts.critical = (t.match(/\bcritical\b|\bsevere\b|\bdangerous\b|\bvulnerabilit/g) || []).length;
-  counts.high     = (t.match(/\bhigh[\s\-]?risk\b|\bhigh severity\b|\bmajor bug\b|\bmajor issue\b|\bsecurity flaw\b/g) || []).length;
-  counts.medium   = (t.match(/\bmedium[\s\-]?risk\b|\bwarning\b|\bmoderate\b|\bpotential issue\b|\bshould fix\b/g) || []).length;
-  counts.low      = (t.match(/\blow[\s\-]?risk\b|\bminor\b|\bnit\b/g) || []).length;
+  // ── PRIMARY SIGNAL: structured "- Risk: X" markers ─────────────────────
+  // These are directly emitted by the AI prompt instruction:
+  //   "- Risk: low|medium|high|critical"
+  // Anchored to the beginning of lines to avoid matching inline prose.
+  counts.critical += (t.match(/^[\s\-*>]*risk\s*:\s*critical\b/gm) || []).length;
+  counts.high     += (t.match(/^[\s\-*>]*risk\s*:\s*high\b/gm)     || []).length;
+  counts.medium   += (t.match(/^[\s\-*>]*risk\s*:\s*medium\b/gm)   || []).length;
+  counts.low      += (t.match(/^[\s\-*>]*risk\s*:\s*low\b/gm)      || []).length;
 
-  // Structured output markers (repo reviewer adds "- Risk: high" etc.)
-  counts.critical += (t.match(/risk:\s*critical/g) || []).length * 3;
-  counts.high     += (t.match(/risk:\s*high/g)     || []).length * 3;
-  counts.medium   += (t.match(/risk:\s*medium/g)   || []).length * 2;
-  counts.low      += (t.match(/risk:\s*low/g)      || []).length;
+  // ── SECONDARY SIGNAL: tight multi-word severity phrases only ─────────────
+  // Single generic words ("warning", "minor", "moderate", "critical") appear
+  // constantly in review prose and caused the old engine to always return 100.
+  // Only specific multi-word phrases are counted here.
+  const kwCritical = (t.match(/\bsecurity vulnerability\b|\bremote code execution\b|\bsql injection\b|\bxss vulnerability\b|\bprivilege escalation\b|\bcritical flaw\b|\bcritical bug\b/g) || []).length;
+  const kwHigh     = (t.match(/\bhigh[\-\s]risk\b|\bhigh severity\b|\bmajor security\b|\bmajor bug\b|\bmemory leak\b|\bsecurity flaw\b|\bdata loss\b/g) || []).length;
+  const kwMedium   = (t.match(/\bmedium[\-\s]risk\b|\bpotential issue\b|\bshould be fixed\b|\bmoderate risk\b|\bpossible bug\b/g) || []).length;
+  const kwLow      = (t.match(/\blow[\-\s]risk\b|\bminor issue\b|\bcode style\b|\bnitpick\b|\bnit:/g) || []).length;
 
-  const raw   = counts.critical * 28 + counts.high * 12 + counts.medium * 5 + counts.low * 1;
+  // Cap keyword contributions so verbose prose can never dominate
+  counts.critical += Math.min(kwCritical, 2);
+  counts.high     += Math.min(kwHigh,     3);
+  counts.medium   += Math.min(kwMedium,   3);
+  counts.low      += Math.min(kwLow,      3);
+
+  // ── SCORING: calibrated weights ──────────────────────────────────────────
+  //  1 critical = +25 pts  →  4  critical files  = 100
+  //  1 high     = +10 pts  →  10 high-risk files = 100
+  //  1 medium   =  +4 pts  →  25 medium findings = 100
+  //  1 low      =  +1 pt
+  const raw   = counts.critical * 25 + counts.high * 10 + counts.medium * 4 + counts.low * 1;
   const score = Math.min(100, Math.round(raw));
   return { score, counts };
 }
