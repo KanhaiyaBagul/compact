@@ -98,16 +98,18 @@ system_prompt: |
 
   File Reviewed: <path>
 
-  1. **High-Level Verdict**
-     - COMMIT BLOCKER: Will not build, violates policy, introduces regressions, or has security issues
-     - NEEDS MAJOR REVISION: Significant correctness, style, or architectural issues
-     - NEEDS MINOR REVISION: Style violations, minor bugs, or improvements needed
-     - ACCEPTABLE: Meets standards (rare)
+  1. **High-Level Verdict** (Use exactly ONE of these markers at the start):
+     - [COMMIT BLOCKER]: Will not build, violates policy, introduces regressions, or has security issues
+     - [NEEDS MAJOR REVISION]: Significant correctness, style, or architectural issues
+     - [NEEDS MINOR REVISION]: Style violations, minor bugs, or improvements needed
+     - [ACCEPTABLE]: Meets standards (rare)
 
   2. **Critical Security Failures**
+     - Use [SECURITY] for each finding.
      - Issue, Location, Why dangerous, Exploitation scenario, Correct implementation, References
 
   3. **Style(9) Violations**
+     - Use [STYLE] for each violation.
      - Line-by-line style violations with specific style(9) sections cited
 
   4. **Correctness and Logic Errors**
