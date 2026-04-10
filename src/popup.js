@@ -646,8 +646,12 @@ function buildFileReviewContext(patchText) {
 
 function parseGitHubRepoUrl(url) {
   const cleanUrl = (url || '').split('?')[0].split('#')[0];
-  const match = cleanUrl.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/?$/);
+  // More flexible regex: matches owner and repo even in subdirectories
+  const match = cleanUrl.match(/^https:\/\/(?:www\.)?github\.com\/([^/]+)\/([^/]+)(?:\/|$)/);
   if (!match) return null;
+  // Filter out non-repo keywords that appear in the owner/repo position
+  const reserved = ['settings', 'notifications', 'marketplace', 'explore', 'orgs', 'users'];
+  if (reserved.includes(match[1])) return null;
   return { owner: match[1], repo: match[2] };
 }
 
