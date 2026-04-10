@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; object-src 'self';"
   },
   "name": "Compact",
   "version": "0.3.0",
@@ -26,7 +26,9 @@
     "https://github.com/*",
     "https://*.githubusercontent.com/",
     "https://gitlab.com/",
-    "http://localhost/*"
+    "http://localhost/*",
+    "https://fonts.googleapis.com/*",
+    "https://fonts.gstatic.com/*"
   ],
   "optional_host_permissions": ["https://*/*"]
 }
