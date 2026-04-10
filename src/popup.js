@@ -19,6 +19,146 @@ let currentReportMeta = {
 };
 let chatHistory = [];
 
+// ══════════════════════════════════════════════
+// RISK SCORE ENGINE
+// ══════════════════════════════════════════════
+
+function computeRiskScore(markdown) {
+  const t = (markdown || '').toLowerCase();
+  const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+
+  counts.critical = (t.match(/\bcritical\b|\bsevere\b|\bdangerous\b|\bvulnerabilit/g) || []).length;
+  counts.high     = (t.match(/\bhigh[\s\-]?risk\b|\bhigh severity\b|\bmajor bug\b|\bmajor issue\b|\bsecurity flaw\b/g) || []).length;
+  counts.medium   = (t.match(/\bmedium[\s\-]?risk\b|\bwarning\b|\bmoderate\b|\bpotential issue\b|\bshould fix\b/g) || []).length;
+  counts.low      = (t.match(/\blow[\s\-]?risk\b|\bminor\b|\bnit\b/g) || []).length;
+
+  // Structured output markers (repo reviewer adds "- Risk: high" etc.)
+  counts.critical += (t.match(/risk:\s*critical/g) || []).length * 3;
+  counts.high     += (t.match(/risk:\s*high/g)     || []).length * 3;
+  counts.medium   += (t.match(/risk:\s*medium/g)   || []).length * 2;
+  counts.low      += (t.match(/risk:\s*low/g)      || []).length;
+
+  const raw   = counts.critical * 28 + counts.high * 12 + counts.medium * 5 + counts.low * 1;
+  const score = Math.min(100, Math.round(raw));
+  return { score, counts };
+}
+
+function updateRiskGauge(score, counts) {
+  const numEl   = document.getElementById('risk-score-num');
+  const arcEl   = document.getElementById('risk-arc');
+  const pillsEl = document.getElementById('risk-pills');
+  if (!numEl || !arcEl || !pillsEl) return;
+
+  numEl.textContent = score;
+
+  const circumference = 2 * Math.PI * 48; // r = 48
+  const filled = (score / 100) * circumference;
+  arcEl.setAttribute('stroke-dasharray', `${filled.toFixed(1)} ${circumference.toFixed(1)}`);
+
+  let color = '#22c55e'; // green – low
+  if (score >= 70)      color = '#ef4444'; // red    – critical
+  else if (score >= 45) color = '#f97316'; // orange – high
+  else if (score >= 20) color = '#f59e0b'; // yellow – medium
+  arcEl.setAttribute('stroke', color);
+  numEl.style.color = color;
+
+  const pills = [];
+  if (counts.critical > 0) pills.push(`<span class="risk-pill risk-pill-critical">● ${counts.critical} Critical</span>`);
+  if (counts.high > 0)     pills.push(`<span class="risk-pill risk-pill-high">▲ ${counts.high} High</span>`);
+  if (counts.medium > 0)   pills.push(`<span class="risk-pill risk-pill-medium">◆ ${counts.medium} Medium</span>`);
+  if (counts.low > 0)      pills.push(`<span class="risk-pill risk-pill-low">● ${counts.low} Low</span>`);
+  pillsEl.innerHTML = pills.length
+    ? pills.join('')
+    : '<span style="font-size:10px;color:#52525b;font-style:italic">No issues found</span>';
+}
+
+function resetRiskGauge() {
+  const numEl   = document.getElementById('risk-score-num');
+  const arcEl   = document.getElementById('risk-arc');
+  const pillsEl = document.getElementById('risk-pills');
+  if (numEl)   { numEl.textContent = '--'; numEl.style.color = ''; }
+  if (arcEl)   { arcEl.setAttribute('stroke-dasharray', '0 301.6'); arcEl.setAttribute('stroke', '#22c55e'); }
+  if (pillsEl) pillsEl.innerHTML = '<span style="font-size:10px;color:#52525b;font-style:italic">Analyzing...</span>';
+}
+
+// ══════════════════════════════════════════════
+// SYNTAX HIGHLIGHT + CODE BLOCK DECORATOR
+// ══════════════════════════════════════════════
+
+function applySyntaxHighlight(code, lang) {
+  // Start from plain text, fully escaped
+  let r = code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // 1. Comments (before strings so inner strings aren't re-processed)
+  r = r.replace(/((\/\/[^\n]*)|(#[^\n]*)|\/\*[\s\S]*?\*\/)/g,
+    '<span style="color:#6b7280;font-style:italic">$1</span>');
+
+  // 2. Strings
+  r = r.replace(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)/g,
+    '<span style="color:#4ade80">$1</span>');
+
+  // 3. Keywords
+  const kw = 'const|let|var|function|return|if|else|for|while|do|switch|case|break|continue' +
+    '|class|new|this|super|import|export|default|async|await|try|catch|finally|throw' +
+    '|typeof|instanceof|in|of|true|false|null|undefined|void|delete' +
+    '|def|self|from|pass|elif|lambda|yield|with|as|except|raise|del|global|nonlocal|and|or|not|is|print|None|True|False' +
+    '|fn|pub|mut|use|mod|struct|enum|impl|trait|where|type|match|ref|move|loop';
+  r = r.replace(new RegExp(`\\b(${kw})\\b`, 'g'),
+    '<span style="color:#818cf8;font-weight:500">$1</span>');
+
+  // 4. Numbers
+  r = r.replace(/\b(\d+\.?\d*)\b/g,
+    '<span style="color:#fb923c">$1</span>');
+
+  return r;
+}
+
+function enhanceCodeBlocks() {
+  const resultEl = document.getElementById('result');
+  if (!resultEl) return;
+
+  resultEl.querySelectorAll('pre').forEach((pre) => {
+    if (pre.dataset.enhanced) return; // already processed
+    pre.dataset.enhanced = '1';
+
+    const codeEl = pre.querySelector('code');
+    if (!codeEl) return;
+
+    const langClass = Array.from(codeEl.classList).find((c) => c.startsWith('language-'));
+    const lang = langClass ? langClass.replace('language-', '') : '';
+    if (lang === 'mermaid') return; // mermaid handled separately
+
+    // Language badge
+    const badge = document.createElement('span');
+    badge.className = 'code-lang-badge';
+    badge.textContent = lang || 'code';
+    pre.appendChild(badge);
+
+    // Copy button
+    const btn = document.createElement('button');
+    btn.className = 'code-copy-btn';
+    btn.textContent = 'copy';
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(codeEl.innerText || '').then(() => {
+        btn.textContent = 'copied!';
+        setTimeout(() => { btn.textContent = 'copy'; }, 2000);
+      }).catch(() => {
+        btn.textContent = 'failed';
+        setTimeout(() => { btn.textContent = 'copy'; }, 2000);
+      });
+    });
+    pre.appendChild(btn);
+
+    // Syntax coloring (skip plain / text)
+    if (lang && lang !== 'text' && lang !== 'plain' && lang !== 'output') {
+      codeEl.innerHTML = applySyntaxHighlight(codeEl.textContent || '', lang);
+    }
+  });
+}
+
 function inProgress(active, failed) {
   const btn = document.getElementById('rerun-btn');
   const icon = document.getElementById('status-icon');
@@ -306,6 +446,7 @@ async function appendMarkdownProgressive(sectionMarkdown) {
 async function reviewPR(diffPath, context, title) {
   inProgress(true);
   setDownloadEnabled(false);
+  resetRiskGauge();
   resetRenderedMarkdown('Fetching PR changes...\n');
   chrome.storage.session.remove([diffPath]);
 
@@ -317,31 +458,33 @@ async function reviewPR(diffPath, context, title) {
     currentReportMeta.totalAdditions = fileContext.totalAdditions;
     currentReportMeta.totalDeletions = fileContext.totalDeletions;
 
-    let promptArray = [
-      `Review the following pull request changes.\n\nTitle: ${title}\n\nChanged files overview:\n${
-        fileContext.context
-      }\n\nRespond strictly in markdown with this exact structure:\n## Summary\n(2-4 bullet points)\n## Suggestions\n(3-8 bullet points with actionable improvements)\n## File Findings\n(Use bullets grouped by filename where possible)\n## Detailed Review\n(issues, risks, and notable positives)\n\nCode changes:\n${patch.substring(
-        0,
-        10000
-      )}`,
-    ];
+    const prompt =
+      `Review the following pull request changes.\n\nTitle: ${title}\n\nChanged files overview:\n${fileContext.context}` +
+      `\n\nRespond strictly in markdown with this exact structure:\n` +
+      `## Summary\n(2-4 bullet points)\n` +
+      `## Suggestions\n(3-8 bullet points with actionable improvements)\n` +
+      `## Architecture Diagram\n(Mermaid.js syntax inside a \`\`\`mermaid block)\n` +
+      `## File Findings\n(Use bullets grouped by filename. Prefix each file line with its risk: low|medium|high|critical)\n` +
+      `## Detailed Review\n(issues, risks, and notable positives)\n\n` +
+      `Code changes:\n${patch.substring(0, 10000)}`;
 
     resetRenderedMarkdown('Generating review...\n\n');
-    const reviewText = await askOllama(
-      client,
-      promptArray[0],
-      OLLAMA_TIMEOUT_MS
-    );
+    const reviewText = await askOllama(client, prompt, OLLAMA_TIMEOUT_MS);
     resetRenderedMarkdown('');
     await appendMarkdownProgressive(reviewText);
     commitLiveMarkdown();
+    enhanceCodeBlocks();
+    const { score, counts } = computeRiskScore(staticMarkdown);
+    updateRiskGauge(score, counts);
     chrome.storage.session.set({
       [diffPath]: document.getElementById('result').innerHTML,
     });
     inProgress(false);
     setDownloadEnabled(true);
   } catch (e) {
-    resetRenderedMarkdown('Review Error: ' + e.message);
+    let msg = e.message || 'Unknown error';
+    if (msg.includes('Timed out')) msg += '\n\n> PR may be too large. Try a smaller PR or add a GitHub token in Options.';
+    resetRenderedMarkdown('Review Error: ' + msg);
     inProgress(false, true);
     setDownloadEnabled(false);
   }
@@ -504,6 +647,7 @@ async function fetchRepositoryContext(owner, repo) {
 async function reviewRepository(owner, repo) {
   inProgress(true);
   setDownloadEnabled(false);
+  resetRiskGauge();
   resetRenderedMarkdown('Fetching repository files...\n');
 
   try {
@@ -521,75 +665,54 @@ async function reviewRepository(owner, repo) {
     currentReportMeta.skippedFiles = repoContext.skippedFiles;
 
     resetRenderedMarkdown(
-      `# Repository Review\n\n` +
-        `Repository: ${owner}/${repo}\n\n` +
-        `Branch: ${repoContext.branch}\n\n` +
-        `Files selected: ${repoContext.files.length}\n\n` +
-        `Starting file-by-file analysis...\n\n`
+      `# Repository Review\n\nRepository: ${owner}/${repo}\n\nBranch: ${repoContext.branch}\n\nFiles selected: ${repoContext.files.length}\n\nStarting file-by-file analysis...\n\n`
     );
 
     const perFileFindings = [];
     for (let i = 0; i < repoContext.files.length; i++) {
       const file = repoContext.files[i];
-      appendStaticMarkdown(
-        `\n\n---\n\n## Progress\nAnalyzing file ${i + 1}/${
-          repoContext.files.length
-        }: \`${file.path}\`\n\n`
-      );
+      appendStaticMarkdown(`\n\n---\n\n## Progress\nAnalyzing file ${i + 1}/${repoContext.files.length}: \`${file.path}\`\n\n`);
 
       const filePrompt =
         `Analyze this single repository file for bugs, reliability issues, and maintainability concerns.\n` +
-        `Return markdown with this exact structure:\n` +
-        `### ${file.path}\n` +
-        `- Risk: low|medium|high\n` +
-        `- Issues: bullet list\n` +
-        `- Suggested Fixes: bullet list\n` +
-        `- Quick Summary: one short bullet\n\n` +
-        `File content:\n` +
-        '```text\n' +
-        `${file.content}\n` +
-        '```';
+        `Return markdown with this exact structure:\n### ${file.path}\n- Risk: low|medium|high|critical\n` +
+        `- Issues: bullet list\n- Suggested Fixes: bullet list\n- Quick Summary: one short bullet\n\n` +
+        `File content:\n\`\`\`text\n${file.content}\n\`\`\``;
 
       try {
-        const fileResult = await askOllama(
-          client,
-          filePrompt,
-          OLLAMA_TIMEOUT_MS
-        );
+        const fileResult = await askOllama(client, filePrompt, OLLAMA_TIMEOUT_MS);
         perFileFindings.push(`FILE: ${file.path}\n${fileResult}`);
         await appendMarkdownProgressive(`${fileResult}\n`);
         commitLiveMarkdown();
+        // Update risk gauge incrementally as each file is analyzed
+        const { score, counts } = computeRiskScore(staticMarkdown);
+        updateRiskGauge(score, counts);
       } catch (fileError) {
-        const errText = `### ${file.path}\n- Risk: unknown\n- Issues: Could not analyze file due to: ${fileError.message}\n- Suggested Fixes: Retry analysis for this file.\n- Quick Summary: Analysis failed for this file.\n`;
+        const errText = `### ${file.path}\n- Risk: unknown\n- Issues: ${fileError.message}\n- Suggested Fixes: Retry.\n- Quick Summary: Analysis failed.\n`;
         perFileFindings.push(`FILE: ${file.path}\n${errText}`);
         await appendMarkdownProgressive(`${errText}\n`);
         commitLiveMarkdown();
       }
     }
 
-    appendStaticMarkdown(
-      '\n\n---\n\n## Finalizing\nGenerating overall summary...\n\n'
-    );
+    appendStaticMarkdown('\n\n---\n\n## Finalizing\nGenerating overall summary...\n\n');
     const summaryPrompt =
       `You are given file-by-file findings from a repository review.\n` +
       `Create a final markdown report with sections exactly:\n` +
-      `## Summary\n## Suggestions\n## File Findings\n## Potential Bugs\n## Next Steps\n\n` +
+      `## Summary\n## Suggestions\n## Architecture Diagram\n(Mermaid.js syntax inside a \`\`\`mermaid block)\n## File Findings\n## Potential Bugs\n## Next Steps\n\n` +
       `Repository: ${owner}/${repo}\nBranch: ${repoContext.branch}\n` +
-      `Files analyzed: ${repoContext.files.length}\n` +
-      `Files skipped due to limit/filter: ${repoContext.skippedFiles}\n\n` +
+      `Files analyzed: ${repoContext.files.length}\nFiles skipped: ${repoContext.skippedFiles}\n\n` +
       `Findings:\n${perFileFindings.join('\n\n').slice(0, 70000)}`;
 
-    const finalSummary = await askOllama(
-      client,
-      summaryPrompt,
-      OLLAMA_TIMEOUT_MS
-    );
+    const finalSummary = await askOllama(client, summaryPrompt, OLLAMA_TIMEOUT_MS);
     await appendMarkdownProgressive(`\n\n---\n\n${finalSummary}\n`);
     commitLiveMarkdown();
+    enhanceCodeBlocks();
+    const { score, counts } = computeRiskScore(staticMarkdown);
+    updateRiskGauge(score, counts);
 
     chrome.storage.session.set({
-      [`repo:${currentReportMeta.url}`]:
-        document.getElementById('result').innerHTML,
+      [`repo:${currentReportMeta.url}`]: document.getElementById('result').innerHTML,
     });
     inProgress(false);
     setDownloadEnabled(true);

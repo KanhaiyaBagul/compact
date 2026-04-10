@@ -5,69 +5,127 @@
     <title>Compact AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Calistoga&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   </head>
-  <body class="p-4 bg-transparent text-slate-800">
-    <div class="glass-container flex h-full">
-      <!-- Sidebar / Info Panel -->
-      <aside class="w-64 border-r border-slate-200/50 p-6 flex flex-col gap-6 bg-slate-50/80">
+  <body class="p-3 bg-transparent text-slate-100">
+    <div class="dark-container flex h-full">
+
+      <!-- ── Sidebar ── -->
+      <aside class="sidebar w-64 border-r border-white/5 p-5 flex flex-col gap-4 shrink-0">
+
+        <!-- Logo -->
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-             <span class="text-white font-bold text-xl font-calistoga">C</span>
+          <div class="logo-icon w-9 h-9 rounded-lg flex items-center justify-center shrink-0">
+            <span class="text-white font-bold text-lg font-space">C</span>
           </div>
-          <h1 class="text-xl font-bold text-slate-800 font-calistoga tracking-wide">Compact</h1>
+          <h1 class="text-lg font-bold text-white font-space tracking-wide">Compact</h1>
         </div>
 
-        <div class="flex flex-col gap-4 flex-grow">
-          <div class="floating-card flex flex-col gap-1">
-             <span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Current Target</span>
-             <span id="pr-url" class="text-xs text-slate-600 truncate font-mono">Loading...</span>
+        <!-- Current Target -->
+        <div class="dark-card flex flex-col gap-1.5">
+          <span class="section-label">Current Target</span>
+          <span id="pr-url" class="text-xs text-blue-400 truncate font-mono">Loading...</span>
+        </div>
+
+        <!-- Risk Gauge -->
+        <div class="dark-card flex flex-col items-center gap-3">
+          <span class="section-label self-start">Risk Score</span>
+
+          <!-- SVG Circular Gauge -->
+          <div class="relative w-[120px] h-[120px]">
+            <svg viewBox="0 0 120 120" class="w-full h-full" style="transform: rotate(-90deg);">
+              <!-- Track -->
+              <circle cx="60" cy="60" r="48" fill="none" stroke="#1f1f1f" stroke-width="10"/>
+              <!-- Active arc -->
+              <circle id="risk-arc"
+                cx="60" cy="60" r="48"
+                fill="none"
+                stroke="#22c55e"
+                stroke-width="10"
+                stroke-dasharray="0 301.6"
+                stroke-linecap="round"
+                style="transition: stroke-dasharray 1s ease, stroke 0.6s ease;"/>
+            </svg>
+            <!-- Center label -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span id="risk-score-num" class="text-3xl font-bold text-white font-space leading-none" style="transition: color 0.6s ease;">--</span>
+              <span class="text-[9px] text-zinc-600 uppercase tracking-widest mt-1">Risk</span>
+            </div>
           </div>
 
-          <div id="status-panel" class="floating-card flex items-center gap-3">
-             <div id="status-icon" class="text-blue-500"></div>
-             <span class="text-xs text-slate-700 font-semibold">System Ready</span>
+          <!-- Risk pills -->
+          <div id="risk-pills" class="flex flex-wrap gap-1.5 justify-center">
+            <span class="text-[10px] text-zinc-600 italic">Run a review to see risk</span>
           </div>
         </div>
 
-        <div class="flex flex-col gap-3">
-           <button id="rerun-btn" type="button" class="btn-premium w-full text-xs">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61 5.002 5.002 0 008.715 1.333H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
-              </svg>
-              Refresh Review
-           </button>
-           <button id="download-btn" disabled class="w-full text-xs font-semibold py-2 rounded-xl border border-slate-300 text-slate-500 bg-white opacity-50 transition-all hover:bg-slate-50 disabled:hover:bg-white shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-              Export PDF
-           </button>
+        <!-- Status -->
+        <div id="status-panel" class="dark-card flex items-center gap-2.5">
+          <div id="status-icon" class="text-blue-400 flex-shrink-0"></div>
+          <span class="text-xs text-zinc-400 font-medium">System Ready</span>
         </div>
+
+        <!-- Spacer -->
+        <div class="flex-grow"></div>
+
+        <!-- Model Active Badge -->
+        <div id="stats-badge" class="hidden model-badge text-center text-[10px] px-2.5 py-1 rounded-full font-bold tracking-widest">
+          ◉ MODEL ACTIVE
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-col gap-2">
+          <button id="rerun-btn" type="button" class="btn-primary w-full text-xs">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61 5.002 5.002 0 008.715 1.333H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+            </svg>
+            Refresh Review
+          </button>
+          <button id="download-btn" disabled class="btn-secondary w-full text-xs">
+            Export PDF
+          </button>
+        </div>
+
       </aside>
 
-      <!-- Main Content Area -->
-      <main class="flex-grow p-6 flex flex-col gap-4 overflow-hidden bg-white/90">
-        <div class="flex justify-between items-center">
-           <h2 class="text-sm font-semibold text-slate-500 tracking-wider uppercase">AI Code Analysis</h2>
-           <div id="stats-badge" class="bg-blue-50 text-blue-600 text-[10px] px-2.5 py-1 rounded-full border border-blue-200 font-bold hidden shadow-sm">
-             MODEL ACTIVE
-           </div>
+      <!-- ── Main Content ── -->
+      <main class="flex-grow p-5 flex flex-col gap-3 overflow-hidden main-content">
+
+        <!-- Header -->
+        <div class="flex justify-between items-center shrink-0">
+          <h2 class="text-[10px] font-semibold text-zinc-600 tracking-widest uppercase">AI Code Analysis</h2>
+          <button id="chat-toggle-btn" class="btn-ghost text-[11px] px-3 py-1.5">Open Chat</button>
         </div>
 
-        <div class="flex-grow overflow-y-auto custom-scrollbar pr-2">
-           <div id="result" class="animate-fade leading-relaxed">
-              <!-- Result content injected here -->
-           </div>
+        <!-- Scrollable Result -->
+        <div class="flex-grow overflow-y-auto custom-scrollbar pr-1 min-h-0">
+          <div id="result" class="animate-fade leading-relaxed"></div>
         </div>
+
+        <!-- Chat Panel -->
+        <div id="chat-panel" class="hidden border-t border-white/5 pt-3 flex flex-col gap-2 shrink-0">
+          <div id="chat-messages" class="max-h-36 overflow-y-auto space-y-2 custom-scrollbar pr-1"></div>
+          <div class="flex gap-2">
+            <input id="chat-input" type="text" placeholder="Ask about this review..." class="chat-input flex-grow text-xs py-2 px-3"/>
+            <button id="chat-send" class="btn-primary px-4 py-2 text-xs shrink-0">Send</button>
+          </div>
+        </div>
+
       </main>
     </div>
 
     <script src="popup.js"></script>
+
     <style>
-      .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+      body      { font-family: 'Inter', sans-serif; background: #0d0d0d; }
+      .font-space { font-family: 'Space Grotesk', sans-serif; }
+      .font-mono, code, pre { font-family: 'JetBrains Mono', monospace; }
+
+      /* Thin dark scrollbar */
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 10px; }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.5); }
-      .font-calistoga { font-family: 'Calistoga', serif; }
-      body { font-family: 'Inter', sans-serif; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 10px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
     </style>
   </body>
 </html>
