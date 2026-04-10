@@ -24,7 +24,7 @@
   "host_permissions": [
     "https://api.github.com/*",
     "https://github.com/*",
-    "https://*.githubusercontent.com/",
+    "https://*.githubusercontent.com/*",
     "https://gitlab.com/",
     "http://localhost/*"
   ],

@@ -3,12 +3,14 @@ const saveOptions = () => {
   const api_key = document.getElementById('api_key').value;
   const api_url = document.getElementById('api_url').value;
   const model_name = document.getElementById('model_name').value;
+  const gh_token = document.getElementById('gh_token').value;
 
   chrome.storage.sync.set(
     {
       api_key: api_key,
       api_url: api_url,
       model_name: model_name,
+      gh_token: gh_token,
     },
     () => {
       const status = document.getElementById('status');
@@ -28,11 +30,13 @@ const restoreOptions = () => {
       api_key: 'ollama',
       api_url: 'http://localhost:11434/v1',
       model_name: 'llama3.2:1b',
+      gh_token: '',
     },
     (items) => {
       document.getElementById('api_key').value = items.api_key;
       document.getElementById('api_url').value = items.api_url;
       document.getElementById('model_name').value = items.model_name;
+      document.getElementById('gh_token').value = items.gh_token;
     }
   );
 };

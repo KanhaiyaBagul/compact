@@ -159,9 +159,13 @@ This is typically a CORS (Cross-Origin Resource Sharing) issue. By default, Olla
 - **Fix**: Set `OLLAMA_ORIGINS="chrome-extension://*"` as an environment variable and **fully restart** the Ollama service.
 - **Verification**: You can check if it's working by opening the extension popup, right-clicking, selecting **Inspect**, and checking the console for 403 errors.
 
+### Extension: GitHub API "HTTP 403" Error
+If you see an HTTP 403 error when reviewing repositories, you have likely hit GitHub's unauthenticated rate limit.
+- **Fix**: Create a [GitHub Personal Access Token (PAT)](https://github.com/settings/tokens) (no scopes required for public repos) and add it to the **Options** page of the extension. This increases your rate limit significantly.
+
 ### Extension: Large PR Timeouts
 Very large Pull Requests (20+ files or 10,000+ lines changed) may hit the Ollama or GitHub API timeout limits.
-- **Workaround**: Currently, the system limits the characters per file to 4,000 to mitigate this. For extremely large PRs, we recommend using the **Compact Reviewer Engine** (Python) which handles large-scale chunking more gracefully.
+- **Workaround**: We recommend using a GitHub PAT as described above to ensure stable diff fetching. For extremely large PRs, we recommend using the **Compact Reviewer Engine** (Python) which handles large-scale chunking more gracefully.
 
 ### Extension: Risk Score engine
 The current risk score engine uses a seeded random generator (1-15 range) for management purposes. This ensures that the same review text consistently produces the same score while preventing "alert fatigue" from constantly high scores.
@@ -175,4 +179,4 @@ We welcome contributions! Please see `CONTRIBUTING.md` in the `code reviewer` di
 
 ## 📄 License
 
-This project is licensed under the Apache License 2.0 / MIT License. See `LICENSE` for details.
+This project is licensed under the Apache License 2.0 / MIT License. See `LICENSE` for details.

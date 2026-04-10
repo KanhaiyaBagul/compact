@@ -491,8 +491,16 @@ class GitHelper:
         """Run a git command and return (returncode, output)."""
         cmd = ['git', '-C', str(self.repo_root)] + args
         if capture:
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            return result.returncode, (result.stdout + result.stderr).strip()
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+            )
+            stdout = result.stdout or ''
+            stderr = result.stderr or ''
+            return result.returncode, (stdout + stderr).strip()
         else:
             result = subprocess.run(cmd)
             return result.returncode, ""

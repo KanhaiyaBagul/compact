@@ -198,6 +198,7 @@ async function getSettings() {
         api_key: 'ollama',
         api_url: 'http://localhost:11434/v1',
         model_name: 'deepseek-r1:1.5b',
+        gh_token: '',
       },
       resolve
     );
@@ -207,7 +208,21 @@ async function getSettings() {
     apiKey: settings['api_key'],
     baseUrl: settings['api_url'],
     model: settings['model_name'],
+    ghToken: settings['gh_token'],
   };
+}
+
+async function getGitHubHeaders() {
+  try {
+    const settings = await getSettings();
+    const headers = {};
+    if (settings.ghToken && settings.ghToken.trim()) {
+      headers['Authorization'] = `token ${settings.ghToken.trim()}`;
+    }
+    return headers;
+  } catch {
+    return {};
+  }
 }
 
 async function createOllamaClient() {
@@ -493,7 +508,8 @@ async function reviewPR(diffPath, context, title) {
 
   try {
     const client = await createOllamaClient();
-    const patch = await fetchWithTimeout(diffPath, DIFF_FETCH_TIMEOUT_MS);
+    const ghHeaders = await getGitHubHeaders();
+    const patch = await fetchWithTimeout(diffPath, DIFF_FETCH_TIMEOUT_MS, ghHeaders);
     const fileContext = buildFileReviewContext(patch);
     currentReportMeta.files = fileContext.files;
     currentReportMeta.totalAdditions = fileContext.totalAdditions;
@@ -524,7 +540,11 @@ async function reviewPR(diffPath, context, title) {
     setDownloadEnabled(true);
   } catch (e) {
     let msg = e.message || 'Unknown error';
-    if (msg.includes('Timed out')) msg += '\n\n> PR may be too large. Try a smaller PR or add a GitHub token in Options.';
+    if (msg.includes('Timed out')) {
+      msg += '\n\n> PR may be too large. Try a smaller PR or add a GitHub token in Options.';
+    } else if (msg.includes('403') && msg.includes('github.com')) {
+      msg += '\n\n> **GitHub Rate Limit Exceeded**: Please add a **GitHub Personal Access Token** in the Options page to increase limits.';
+    }
     resetRenderedMarkdown('Review Error: ' + msg);
     inProgress(false, true);
     setDownloadEnabled(false);
@@ -628,9 +648,11 @@ async function fetchJsonWithTimeout(url, timeoutMs, headers = {}) {
 }
 
 async function fetchRepositoryContext(owner, repo) {
+  const ghHeaders = await getGitHubHeaders();
   const repoMeta = await fetchJsonWithTimeout(
     `https://api.github.com/repos/${owner}/${repo}`,
-    DIFF_FETCH_TIMEOUT_MS
+    DIFF_FETCH_TIMEOUT_MS,
+    ghHeaders
   );
   const branch = repoMeta.default_branch;
   if (!branch) {
@@ -639,7 +661,8 @@ async function fetchRepositoryContext(owner, repo) {
 
   const treeData = await fetchJsonWithTimeout(
     `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
-    DIFF_FETCH_TIMEOUT_MS
+    DIFF_FETCH_TIMEOUT_MS,
+    ghHeaders
   );
   const allFiles = (treeData.tree || []).filter(
     (item) => item.type === 'blob' && isLikelyTextFile(item.path)
@@ -758,7 +781,11 @@ async function reviewRepository(owner, repo) {
     inProgress(false);
     setDownloadEnabled(true);
   } catch (e) {
-    resetRenderedMarkdown('Review Error: ' + e.message);
+    let msg = e.message || 'Unknown error';
+    if (msg.includes('403') && msg.includes('github.com')) {
+      msg += '\n\n> **GitHub Rate Limit Exceeded**: Repository scans require many API calls. Please add a **GitHub Personal Access Token** in the Options page.';
+    }
+    resetRenderedMarkdown('Review Error: ' + msg);
     inProgress(false, true);
     setDownloadEnabled(false);
   }
