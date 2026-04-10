@@ -7,6 +7,29 @@ const PER_FILE_CHAR_LIMIT = 4000;
 const REPO_TOTAL_CHAR_LIMIT = 100000;
 const STREAM_RENDER_EVERY_TOKENS = 24;
 const STREAM_PAUSE_MS = 30;
+// Cache review results locally for 60 min to avoid hitting GitHub API rate limits
+const CACHE_TTL_MS = 60 * 60 * 1000;
+
+function getCachedResult(key) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([key], (result) => {
+      const entry = result[key];
+      if (entry && entry.html && (Date.now() - entry.ts) < CACHE_TTL_MS) {
+        resolve(entry.html);
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
+function setCachedResult(key, html) {
+  chrome.storage.local.set({ [key]: { html, ts: Date.now() } });
+}
+
+function removeCachedResult(key) {
+  return new Promise((resolve) => chrome.storage.local.remove([key], resolve));
+}
 let currentReportMeta = {
   mode: 'pr',
   title: '',
@@ -508,8 +531,7 @@ async function reviewPR(diffPath, context, title) {
   inProgress(true);
   setDownloadEnabled(false);
   resetRiskGauge();
-  resetRenderedMarkdown('Fetching PR changes...\n');
-  chrome.storage.session.remove([diffPath]);
+  resetRenderedMarkdown('Fetching PR changes...');
 
   try {
     const client = await createOllamaClient();
@@ -538,9 +560,7 @@ async function reviewPR(diffPath, context, title) {
     enhanceCodeBlocks();
     const { score, counts } = computeRiskScore(staticMarkdown);
     updateRiskGauge(score, counts);
-    chrome.storage.session.set({
-      [diffPath]: document.getElementById('result').innerHTML,
-    });
+    setCachedResult(diffPath, document.getElementById('result').innerHTML);
     inProgress(false);
     setDownloadEnabled(true);
   } catch (e) {
@@ -548,7 +568,7 @@ async function reviewPR(diffPath, context, title) {
     if (msg.includes('Timed out')) {
       msg += '\n\n> PR may be too large. Try a smaller PR or add a GitHub token in Options.';
     } else if (msg.includes('403') && msg.includes('github.com')) {
-      msg += '\n\n> **GitHub Rate Limit Exceeded**: Please add a **GitHub Personal Access Token** in the Options page to increase limits.';
+      msg += '\n\n> **GitHub Rate Limit Exceeded**: Please add a **GitHub Personal Access Token** in the Options page.';
     }
     resetRenderedMarkdown('Review Error: ' + msg);
     inProgress(false, true);
@@ -652,66 +672,141 @@ async function fetchJsonWithTimeout(url, timeoutMs, headers = {}) {
   }
 }
 
+
+/** Reads branch name and visible file paths from the active GitHub repo tab DOM.
+ *  Zero API calls — all data comes from the already-rendered page. */
+async function getPageRepoInfo() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs[0];
+      if (!tab?.id) return resolve(null);
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          // ── Branch ───────────────────────────────────────────────
+          let branch = null;
+          // 1. data-ref attribute on branch picker
+          const refEl = document.querySelector('[data-ref]');
+          if (refEl) branch = refEl.dataset.ref;
+          // 2. /tree/{branch} in current URL
+          if (!branch) { const m = location.pathname.match(/\/tree\/([^/?#]+)/); if (m) branch = m[1]; }
+          // 3. <span class="css-truncate-target"> inside the branch button
+          if (!branch) { const span = document.querySelector('.branch-name, .ref-name, [data-menu-button] .css-truncate-target'); if (span) branch = span.textContent.trim(); }
+          // 4. summary[title] in branch summary element
+          if (!branch) { const s = document.querySelector('summary[title]'); if (s) branch = s.getAttribute('title'); }
+
+          // ── Files & Dirs ─────────────────────────────────────────
+          const files = [], dirs = [];
+          const seen = new Set();
+          document.querySelectorAll('a[href*="/blob/"], a[href*="/tree/"]').forEach(a => {
+            const href = a.getAttribute('href') || '';
+            const blobM = href.match(/\/blob\/[^/]+\/([^?#]+)/);
+            const treeM = href.match(/\/tree\/[^/]+\/([^?#]+)/);
+            if (blobM && !seen.has(blobM[1])) { seen.add(blobM[1]); files.push(blobM[1]); }
+            else if (treeM && !seen.has(treeM[1])) { seen.add(treeM[1]); dirs.push(treeM[1]); }
+          });
+
+          return { branch, files, dirs };
+        },
+      }, (results) => {
+        if (chrome.runtime.lastError || !results?.[0]?.result) return resolve(null);
+        resolve(results[0].result);
+      });
+    });
+  });
+}
+
 async function fetchRepositoryContext(owner, repo) {
-  const ghHeaders = await getGitHubHeaders();
-  const repoMeta = await fetchJsonWithTimeout(
-    `https://api.github.com/repos/${owner}/${repo}`,
-    DIFF_FETCH_TIMEOUT_MS,
-    ghHeaders
-  );
-  const branch = repoMeta.default_branch;
-  if (!branch) {
-    throw new Error('Could not determine default branch for repository.');
+  // ── Step 1: Read branch + visible files from page DOM (ZERO api.github.com calls) ──
+  let branch = 'main';
+  let pageDirs = [];
+  const candidatePaths = new Set();
+
+  const pageInfo = await getPageRepoInfo();
+  if (pageInfo) {
+    if (pageInfo.branch) branch = pageInfo.branch;
+    pageInfo.files.forEach(p => candidatePaths.add(p));
+    pageDirs = pageInfo.dirs || [];
   }
 
-  const treeData = await fetchJsonWithTimeout(
-    `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
-    DIFF_FETCH_TIMEOUT_MS,
-    ghHeaders
-  );
-  const allFiles = (treeData.tree || []).filter(
-    (item) => item.type === 'blob' && isLikelyTextFile(item.path)
-  );
-  const selectedFiles = allFiles.slice(0, REPO_REVIEW_FILE_LIMIT);
-  const skippedFiles = Math.max(0, allFiles.length - selectedFiles.length);
+  // ── Step 2: Always probe common convention files (language-agnostic) ──
+  const COMMON_ROOTS = [
+    'package.json', 'package-lock.json', 'yarn.lock',
+    'README.md', 'README.rst', 'readme.md',
+    'tsconfig.json', 'jsconfig.json',
+    'vite.config.js', 'vite.config.ts', 'webpack.config.js',
+    'next.config.js', 'next.config.ts',
+    'tailwind.config.js', 'postcss.config.js',
+    'src/index.js', 'src/index.ts', 'src/index.jsx', 'src/index.tsx',
+    'src/App.js', 'src/App.tsx', 'src/App.jsx', 'src/main.js', 'src/main.ts',
+    'main.py', 'app.py', '__init__.py', 'manage.py',
+    'requirements.txt', 'setup.py', 'setup.cfg', 'pyproject.toml',
+    'Makefile', 'CMakeLists.txt', 'Dockerfile', 'docker-compose.yml',
+    '.github/workflows/main.yml', '.github/workflows/ci.yml',
+    'go.mod', 'go.sum', 'main.go', 'Cargo.toml', 'pom.xml', 'build.gradle',
+  ];
+  COMMON_ROOTS.forEach(p => candidatePaths.add(p));
+
+  // For each top-level directory found in the page, try index files
+  const DIR_PROBES = ['index.js', 'index.ts', 'index.jsx', 'index.tsx', 'index.py', 'mod.rs'];
+  pageDirs.slice(0, 12).forEach(dir => {
+    DIR_PROBES.forEach(f => candidatePaths.add(`${dir}/${f}`));
+  });
+
+  // ── Step 3: Fetch file contents via raw.githubusercontent.com ──
+  // raw.githubusercontent.com is NOT subject to the 60/hour GitHub API rate limit.
+  const BRANCHES_TO_TRY = branch === 'main' ? ['main', 'master', 'develop'] : [branch, 'main', 'master'];
+  let resolvedBranch = branch;
 
   const files = [];
   let totalChars = 0;
-  for (const file of selectedFiles) {
+
+  for (const filePath of candidatePaths) {
+    if (files.length >= REPO_REVIEW_FILE_LIMIT) break;
     if (totalChars >= REPO_TOTAL_CHAR_LIMIT) break;
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${file.path}`;
-    let content = '';
-    try {
-      content = await fetchWithTimeout(rawUrl, DIFF_FETCH_TIMEOUT_MS);
-    } catch {
-      continue;
+    if (!isLikelyTextFile(filePath)) continue;
+
+    let content = null;
+    for (const tryBranch of BRANCHES_TO_TRY) {
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${tryBranch}/${filePath}`;
+      try {
+        const text = await fetchWithTimeout(rawUrl, DIFF_FETCH_TIMEOUT_MS);
+        // raw.githubusercontent.com returns '404: Not Found' body on missing files
+        if (text && !text.startsWith('404:') && !text.includes('\u0000')) {
+          content = text;
+          resolvedBranch = tryBranch;
+          break;
+        }
+      } catch { /* file doesn't exist on this branch, try next */ }
     }
-    if (!content || content.includes('\u0000')) continue;
+
+    if (!content) continue;
     const trimmed = content.slice(0, PER_FILE_CHAR_LIMIT);
     totalChars += trimmed.length;
-    files.push({
-      path: file.path,
-      additions: 0,
-      deletions: 0,
-      chars: trimmed.length,
-      content: trimmed,
-    });
+    files.push({ path: filePath, additions: 0, deletions: 0, chars: trimmed.length, content: trimmed });
+  }
+
+  if (files.length === 0) {
+    throw new Error(
+      `Could not read any files from ${owner}/${repo}. ` +
+      `Make sure you are on the repository's root page (github.com/${owner}/${repo}).`
+    );
   }
 
   return {
-    branch,
+    branch: resolvedBranch,
     files,
-    skippedFiles,
+    skippedFiles: Math.max(0, candidatePaths.size - files.length),
     totalChars,
     context:
       `Repository: ${owner}/${repo}\n` +
-      `Default branch: ${branch}\n` +
-      `Text files detected: ${allFiles.length}\n` +
-      `Files included in analysis: ${files.length}\n` +
-      `Files skipped due to limit: ${skippedFiles}\n` +
-      `Total characters sent: ${totalChars}`,
+      `Branch: ${resolvedBranch}\n` +
+      `Files analyzed: ${files.length}\n` +
+      `Files skipped: ${Math.max(0, candidatePaths.size - files.length)}\n` +
+      `Total characters: ${totalChars}`,
   };
 }
+
 
 async function reviewRepository(owner, repo) {
   inProgress(true);
@@ -780,9 +875,7 @@ async function reviewRepository(owner, repo) {
     const { score, counts } = computeRiskScore(staticMarkdown);
     updateRiskGauge(score, counts);
 
-    chrome.storage.session.set({
-      [`repo:${currentReportMeta.url}`]: document.getElementById('result').innerHTML,
-    });
+    setCachedResult(`repo:${currentReportMeta.url}`, document.getElementById('result').innerHTML);
     inProgress(false);
     setDownloadEnabled(true);
   } catch (e) {
@@ -905,14 +998,12 @@ function run(forceRefresh = false) {
     if (isGitHubPR) {
       const diffPath = url + '.patch';
       if (forceRefresh) {
-        chrome.storage.session.remove([diffPath], () => {
-          reviewPR(diffPath, isGitHubPR, title);
-        });
+        removeCachedResult(diffPath).then(() => reviewPR(diffPath, isGitHubPR, title));
         return;
       }
-      chrome.storage.session.get([diffPath], (result) => {
-        if (result[diffPath]) {
-          document.getElementById('result').innerHTML = result[diffPath];
+      getCachedResult(diffPath).then((cached) => {
+        if (cached) {
+          document.getElementById('result').innerHTML = cached;
           inProgress(false);
           setDownloadEnabled(true);
         } else {
@@ -922,14 +1013,14 @@ function run(forceRefresh = false) {
     } else if (repoUrlParts) {
       const repoCacheKey = `repo:${url}`;
       if (forceRefresh) {
-        chrome.storage.session.remove([repoCacheKey], () => {
-          reviewRepository(repoUrlParts.owner, repoUrlParts.repo);
-        });
+        removeCachedResult(repoCacheKey).then(() =>
+          reviewRepository(repoUrlParts.owner, repoUrlParts.repo)
+        );
         return;
       }
-      chrome.storage.session.get([repoCacheKey], (result) => {
-        if (result[repoCacheKey]) {
-          document.getElementById('result').innerHTML = result[repoCacheKey];
+      getCachedResult(repoCacheKey).then((cached) => {
+        if (cached) {
+          document.getElementById('result').innerHTML = cached;
           inProgress(false);
           setDownloadEnabled(true);
         } else {
