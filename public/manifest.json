@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://*.firebasestorage.app https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://ipapi.co https://api.ipify.org;"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' http://localhost:11434 https://openrouter.ai https://*.firebaseio.com https://*.firebaseapp.com https://*.firebasestorage.app https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://ipapi.co https://api.ipify.org https://raw.githubusercontent.com https://api.github.com;"
   },
   "name": "Compact",
   "version": "0.3.0",

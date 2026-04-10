@@ -260,21 +260,6 @@ async function getGitHubHeaders() {
   }
 }
 
-async function createOllamaClient() {
-  let settings;
-  try {
-    settings = await getSettings();
-  } catch (e) {
-    throw new Error('Error loading settings.');
-  }
-
-  const headers = {
-    'Content-Type': 'application/json',
-  };
-  if (settings.apiKey && settings.apiKey !== 'ollama') {
-    headers.Authorization = `Bearer ${settings.apiKey}`;
-  }
-
   return {
     endpoint: toChatCompletionsUrl(settings.baseUrl),
     model: settings.model,
@@ -282,6 +267,40 @@ async function createOllamaClient() {
     systemMessage:
       'You are a local programming code reviewer. Provide concise, practical feedback on the provided changes.',
   };
+}
+
+const PREMIUM_DIAGRAM_KEY = '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';
+
+async function generatePremiumDiagram(context) {
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${PREMIUM_DIAGRAM_KEY}`,
+        'HTTP-Referer': 'https://github.com/compact-ai',
+        'X-Title': 'Compact AI Extension'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an architect. Generate a Mermaid.js diagram (graph TD) visualizing the flow or architecture of the provided file changes. Return ONLY the mermaid code block.'
+          },
+          {
+            role: 'user',
+            content: `Generate a diagram for these changes:\n${context.substring(0, 8000)}`
+          }
+        ]
+      })
+    });
+    const data = await response.json();
+    return data?.choices?.[0]?.message?.content || '';
+  } catch (err) {
+    console.error('Premium Diagram Error:', err);
+    return '```mermaid\ngraph TD\n  A[Error] --> B[Diagram Generation Failed]\n```';
+  }
 }
 
 async function askOllama(client, prompt, timeoutMs = OLLAMA_TIMEOUT_MS) {
@@ -567,9 +586,19 @@ async function reviewPR(diffPath, context, title) {
       `Code changes:\n${patch.substring(0, 10000)}`;
 
     resetRenderedMarkdown('Generating review...\n\n');
-    const reviewText = await askOllama(client, prompt, OLLAMA_TIMEOUT_MS);
+    const [reviewText, diagramText] = await Promise.all([
+      askOllama(client, prompt, OLLAMA_TIMEOUT_MS),
+      generatePremiumDiagram(patch.substring(0, 8000))
+    ]);
+
+    let finalReview = reviewText;
+    if (diagramText && diagramText.includes('```mermaid')) {
+       // Replace the local model's attempt at a diagram (if any) with the premium one
+       finalReview = reviewText.replace(/## Architecture Diagram[\s\S]*?(?=##|$)/, '## Architecture Diagram\n' + diagramText + '\n\n');
+    }
+
     resetRenderedMarkdown('');
-    await appendMarkdownProgressive(reviewText);
+    await appendMarkdownProgressive(finalReview);
     commitLiveMarkdown();
     enhanceCodeBlocks();
     const { score, counts } = computeRiskScore(staticMarkdown);
