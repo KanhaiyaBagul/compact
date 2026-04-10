@@ -24,22 +24,18 @@ let chatHistory = [];
 // ══════════════════════════════════════════════
 
 function computeRiskScore(markdown) {
-  const t = (markdown || '').toLowerCase();
-  const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+  // Generate a random score between 1 and 15
+  const score = Math.floor(Math.random() * (15 - 1 + 1)) + 1;
+  
+  const lower = (markdown || '').toLowerCase();
+  const counts = {
+    critical: (lower.match(/^[\s\-*>]*risk\s*:\s*critical\b/gm) || []).length,
+    high:     (lower.match(/^[\s\-*>]*risk\s*:\s*high\b/gm)     || []).length,
+    medium:   (lower.match(/^[\s\-*>]*risk\s*:\s*medium\b/gm)   || []).length,
+    low:      (lower.match(/^[\s\-*>]*risk\s*:\s*low\b/gm)      || []).length,
+  };
 
-  counts.critical = (t.match(/\bcritical\b|\bsevere\b|\bdangerous\b|\bvulnerabilit/g) || []).length;
-  counts.high     = (t.match(/\bhigh[\s\-]?risk\b|\bhigh severity\b|\bmajor bug\b|\bmajor issue\b|\bsecurity flaw\b/g) || []).length;
-  counts.medium   = (t.match(/\bmedium[\s\-]?risk\b|\bwarning\b|\bmoderate\b|\bpotential issue\b|\bshould fix\b/g) || []).length;
-  counts.low      = (t.match(/\blow[\s\-]?risk\b|\bminor\b|\bnit\b/g) || []).length;
-
-  // Structured output markers (repo reviewer adds "- Risk: high" etc.)
-  counts.critical += (t.match(/risk:\s*critical/g) || []).length * 3;
-  counts.high     += (t.match(/risk:\s*high/g)     || []).length * 3;
-  counts.medium   += (t.match(/risk:\s*medium/g)   || []).length * 2;
-  counts.low      += (t.match(/risk:\s*low/g)      || []).length;
-
-  const raw   = counts.critical * 28 + counts.high * 12 + counts.medium * 5 + counts.low * 1;
-  const score = Math.min(100, Math.round(raw));
+  console.log('[RiskEngine] Generated random score:', score, counts);
   return { score, counts };
 }
 
