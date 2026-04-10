@@ -59,6 +59,17 @@
               </svg>
               Chat
             </button>
+            <div class="rs-divider" style="height:20px;"></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span id="user-email" style="font-size:10px;color:var(--text-dim);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+              <button id="signout-btn" class="btn-ghost" title="Sign Out" style="padding:4px;border:none;background:transparent;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -125,6 +136,28 @@
             <div id="stats-badge" class="model-badge hidden">
               <span class="model-dot"></span>
               Model Active
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="rs-divider"></div>
+
+          <!-- Session Metadata -->
+          <div class="risk-strip-item" style="min-width:140px;">
+            <span class="rs-label">Session Audit</span>
+            <div id="session-info" style="font-size:9px; color:var(--text-dim); display:flex; flex-direction:column; gap:2px; margin-top:2px;">
+              <div style="display:flex; justify-content:space-between; gap:10px;">
+                <span>IP:</span>
+                <span id="meta-ip" style="color:var(--text-hi); font-family:var(--font-mono);">--</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; gap:10px;">
+                <span>Loc:</span>
+                <span id="meta-loc" style="color:var(--text-hi); font-family:var(--font-mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80px;">--</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; gap:10px;">
+                <span>Time:</span>
+                <span id="meta-time" style="color:var(--text-hi); font-family:var(--font-mono);">--</span>
+              </div>
             </div>
           </div>
         </div>

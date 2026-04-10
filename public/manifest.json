@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://*.firebaseio.com https://*.firebaseapp.com https://*.firebasestorage.app https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://ipapi.co https://api.ipify.org;"
   },
   "name": "Compact",
   "version": "0.3.0",
@@ -16,7 +16,18 @@
     "default_title": "Compact",
     "default_popup": "popup.html"
   },
-  "permissions": ["activeTab", "storage", "scripting"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["activeTab", "storage", "scripting", "identity"],
+  "oauth2": {
+    "client_id": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "openid"
+    ]
+  },
   "options_ui": {
     "page": "options.html",
     "open_in_tab": false
@@ -26,7 +37,10 @@
     "https://github.com/*",
     "https://*.githubusercontent.com/*",
     "https://gitlab.com/",
-    "http://localhost/*"
+    "http://localhost/*",
+    "https://*.firebaseio.com/*",
+    "https://identitytoolkit.googleapis.com/*",
+    "https://ipapi.co/*"
   ],
   "optional_host_permissions": ["https://*/*"]
 }

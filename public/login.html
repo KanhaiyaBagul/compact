@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Compact Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #13131e;
+            --border: rgba(255,255,255,0.08);
+            --blue: #4f8ef7;
+            --text: #c4cce0;
+            --text-hi: #e8edf8;
+        }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 32px 64px rgba(0,0,0,0.5);
+        }
+        h1 { font-size: 24px; color: var(--text-hi); margin-bottom: 8px; }
+        p { font-size: 14px; margin-bottom: 24px; color: #6b7280; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 12px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.1em; }
+        input {
+            width: 100%; padding: 12px; background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border); border-radius: 10px;
+            color: var(--text-hi); font-size: 14px;
+        }
+        button {
+            width: 100%; padding: 12px; border-radius: 10px; border: none;
+            font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 10px;
+        }
+        .btn-primary { background: var(--blue); color: white; }
+        .btn-google { background: white; color: #333; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 20px; }
+        .error { color: #f87171; font-size: 12px; margin-top: 10px; display: none; }
+        .toggle { margin-top: 20px; text-align: center; font-size: 12px; }
+        .toggle span { color: var(--blue); cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1 id="title">Welcome back</h1>
+        <p id="subtitle">Sign in to continue to Compact AI</p>
+        
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="name@company.com">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="password" placeholder="••••••••">
+        </div>
+        
+        <button id="btn-submit" class="btn-primary">Sign In</button>
+        <div id="error-msg" class="error"></div>
+
+        <button id="btn-google" class="btn-google">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18">
+            Continue with Google
+        </button>
+
+        <div class="toggle">
+            <span id="toggle-mode">Don't have an account? Sign Up</span>
+        </div>
+    </div>
+    <script src="login.js"></script>
+</body>
+</html>

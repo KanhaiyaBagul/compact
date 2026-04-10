@@ -1,4 +1,8 @@
 import './styles.css';
+import { onAuthChanged, signOut, getCurrentUser } from './auth';
+import { getDeviceMetadata } from './utils/network';
+import { db } from './firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const DIFF_FETCH_TIMEOUT_MS = 60000;
 const OLLAMA_TIMEOUT_MS = null;
@@ -571,6 +575,24 @@ async function reviewPR(diffPath, context, title) {
     const { score, counts } = computeRiskScore(staticMarkdown);
     updateRiskGauge(score, counts);
     setCachedResult(diffPath, document.getElementById('result').innerHTML);
+
+    // Metadata Logging
+    try {
+      const user = getCurrentUser();
+      const meta = await getDeviceMetadata();
+      updateSessionAuditUI(meta);
+      await addDoc(collection(db, 'analysis_logs'), {
+        uid: user?.uid || 'anonymous',
+        ip: meta.ip,
+        location: { city: meta.city, country: meta.country, region: meta.region },
+        repoUrl: diffPath,
+        timestamp: serverTimestamp(),
+        mode: 'pr'
+      });
+    } catch (logErr) {
+      console.error('Failed to log analysis metadata:', logErr);
+    }
+
     inProgress(false);
     setDownloadEnabled(true);
   } catch (e) {
@@ -886,6 +908,24 @@ async function reviewRepository(owner, repo) {
     updateRiskGauge(score, counts);
 
     setCachedResult(`repo:${currentReportMeta.url}`, document.getElementById('result').innerHTML);
+
+    // Metadata Logging
+    try {
+      const user = getCurrentUser();
+      const meta = await getDeviceMetadata();
+      updateSessionAuditUI(meta);
+      await addDoc(collection(db, 'analysis_logs'), {
+        uid: user?.uid || 'anonymous',
+        ip: meta.ip,
+        location: { city: meta.city, country: meta.country, region: meta.region },
+        repoUrl: currentReportMeta.url,
+        timestamp: serverTimestamp(),
+        mode: 'repo'
+      });
+    } catch (logErr) {
+      console.error('Failed to log analysis metadata:', logErr);
+    }
+
     inProgress(false);
     setDownloadEnabled(true);
   } catch (e) {
@@ -981,68 +1021,81 @@ const xcircle =
   '<svg class="h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
 
 function run(forceRefresh = false) {
-  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    if (!tabs[0]) return;
-    const url = (tabs[0].url || '').split('?')[0].split('#')[0];
-    const title = tabs[0].title;
-    const repoUrlParts = parseGitHubRepoUrl(url);
-    currentReportMeta = {
-      mode: repoUrlParts ? 'repo' : 'pr',
-      title:
-        title ||
-        (repoUrlParts ? `${repoUrlParts.owner}/${repoUrlParts.repo}` : ''),
-      url,
-      branch: '',
-      files: [],
-      totalAdditions: 0,
-      totalDeletions: 0,
-      skippedFiles: 0,
-    };
-    const isGitHubPR = url.match(
-      /https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/
-    );
-
-    const prUrlEl = document.getElementById('pr-url');
-    if (prUrlEl) prUrlEl.innerText = url;
-
-    if (isGitHubPR) {
-      const diffPath = url + '.patch';
-      if (forceRefresh) {
-        removeCachedResult(diffPath).then(() => reviewPR(diffPath, isGitHubPR, title));
-        return;
-      }
-      getCachedResult(diffPath).then((cached) => {
-        if (cached) {
-          document.getElementById('result').innerHTML = cached;
-          inProgress(false);
-          setDownloadEnabled(true);
-        } else {
-          reviewPR(diffPath, isGitHubPR, title);
-        }
-      });
-    } else if (repoUrlParts) {
-      const repoCacheKey = `repo:${url}`;
-      if (forceRefresh) {
-        removeCachedResult(repoCacheKey).then(() =>
-          reviewRepository(repoUrlParts.owner, repoUrlParts.repo)
-        );
-        return;
-      }
-      getCachedResult(repoCacheKey).then((cached) => {
-        if (cached) {
-          document.getElementById('result').innerHTML = cached;
-          inProgress(false);
-          setDownloadEnabled(true);
-        } else {
-          reviewRepository(repoUrlParts.owner, repoUrlParts.repo);
-        }
-      });
-    } else {
-      inProgress(false, true);
-      setDownloadEnabled(false);
-      document.getElementById('result').innerHTML =
-        '<div class="p-4 text-orange-600">Please navigate to a GitHub Pull Request or repository root page to use this extension.</div>';
+  // Auth Guard
+  onAuthChanged((user) => {
+    if (!user) {
+      chrome.tabs.create({ url: 'login.html' });
+      window.close();
+      return;
     }
+    
+    // Update user UI (badge/signout button will be in popup.html)
+    const userEmailEl = document.getElementById('user-email');
+    if (userEmailEl) userEmailEl.textContent = user.email;
+
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      if (!tabs[0]) return;
+      const url = (tabs[0].url || '').split('?')[0].split('#')[0];
+      const title = tabs[0].title;
+      const repoUrlParts = parseGitHubRepoUrl(url);
+      currentReportMeta = {
+        mode: repoUrlParts ? 'repo' : 'pr',
+        title:
+          title ||
+          (repoUrlParts ? `${repoUrlParts.owner}/${repoUrlParts.repo}` : ''),
+        url,
+        branch: '',
+        files: [],
+        totalAdditions: 0,
+        totalDeletions: 0,
+        skippedFiles: 0,
+      };
+      const isGitHubPR = url.match(
+        /https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/
+      );
+
+      const prUrlEl = document.getElementById('pr-url');
+      if (prUrlEl) prUrlEl.innerText = url;
+
+      if (isGitHubPR) {
+        const diffPath = url + '.patch';
+        if (forceRefresh) {
+          removeCachedResult(diffPath).then(() => reviewPR(diffPath, isGitHubPR, title));
+          return;
+        }
+        getCachedResult(diffPath).then((cached) => {
+          if (cached) {
+            document.getElementById('result').innerHTML = cached;
+            inProgress(false);
+            setDownloadEnabled(true);
+          } else {
+            reviewPR(diffPath, isGitHubPR, title);
+          }
+        });
+      } else if (repoUrlParts) {
+        const repoCacheKey = `repo:${url}`;
+        if (forceRefresh) {
+          removeCachedResult(repoCacheKey).then(() =>
+            reviewRepository(repoUrlParts.owner, repoUrlParts.repo)
+          );
+          return;
+        }
+        getCachedResult(repoCacheKey).then((cached) => {
+          if (cached) {
+            document.getElementById('result').innerHTML = cached;
+            inProgress(false);
+            setDownloadEnabled(true);
+          } else {
+            reviewRepository(repoUrlParts.owner, repoUrlParts.repo);
+          }
+        });
+      } else {
+        inProgress(false, true);
+        setDownloadEnabled(false);
+        document.getElementById('result').innerHTML =
+          '<div class="p-4 text-orange-600">Please navigate to a GitHub Pull Request or repository root page to use this extension.</div>';
+      }
+    });
   });
 }
 
@@ -1275,4 +1328,22 @@ if (chatInput) {
     }
   });
 }
+
+function updateSessionAuditUI(meta) {
+  const ipEl = document.getElementById('meta-ip');
+  const locEl = document.getElementById('meta-loc');
+  const timeEl = document.getElementById('meta-time');
+  
+  if (ipEl) ipEl.textContent = meta.ip || '--';
+  if (locEl) locEl.textContent = meta.city ? `${meta.city}, ${meta.country}` : '--';
+  if (timeEl) timeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+const signoutBtn = document.getElementById('signout-btn');
+if (signoutBtn) {
+  signoutBtn.addEventListener('click', () => {
+    signOut().then(() => window.close());
+  });
+}
+
 run();
