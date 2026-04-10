@@ -3150,7 +3150,7 @@ If no changes needed, respond with just: NO_EDITS_NEEDED"""
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         log_file = self.log_dir / f"step_{step:04d}_{timestamp}.txt"
         
-        with open(log_file, 'w') as f:
+        with open(log_file, 'w', encoding='utf-8') as f:
             f.write(f"=== STEP {step} ===\n\n")
             f.write("--- REQUEST ---\n")
             f.write(request)
@@ -5773,7 +5773,7 @@ Examples:
               f"(confidence: {validation.detected_project.confidence})")
 
     if validation.is_valid:
-        print(f"    ✓ Build command validated")
+        print(f"    [OK] Build command validated")
     else:
         print(f"\n{'='*70}")
         print("WARNING: Build Command May Be Incorrect")
@@ -5887,7 +5887,7 @@ Examples:
             sys.exit(1)
     else:
         logger.warning("Skipping pre-flight build check (--skip-preflight)")
-        print("\n⚠️  WARNING: Pre-flight check skipped!")
+        print("\n[WARNING] Pre-flight check skipped!")
         print("   If source doesn't build, AI may make things worse.\n")
 
     ready, ready_msg = git_helper.ensure_repository_ready(
