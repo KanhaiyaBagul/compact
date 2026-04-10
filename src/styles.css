@@ -2,71 +2,269 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design Tokens ─────────────────────────────── */
 :root {
-  --glass-bg: rgba(250, 249, 246, 0.95); /* Deeply warm off-white */
-  --glass-border: rgba(0, 0, 0, 0.05);
-  --accent-primary: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-  --accent-success: #10b981;
-  --accent-error: #ef4444;
+  --bg-base:     #0d0d0d;
+  --bg-sidebar:  #111111;
+  --bg-main:     #0f0f0f;
+  --bg-card:     #181818;
+  --bg-code:     #0a0a0a;
+  --border:      rgba(255, 255, 255, 0.06);
+  --border-hi:   rgba(255, 255, 255, 0.12);
+  --accent-blue:   #3b82f6;
+  --accent-purple: #8b5cf6;
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted:     #52525b;
+  --risk-low:      #22c55e;
+  --risk-medium:   #f59e0b;
+  --risk-high:     #f97316;
+  --risk-critical: #ef4444;
 }
 
+/* ── Base ───────────────────────────────────────── */
 body {
-    @apply bg-transparent text-slate-800 antialiased font-sans flex;
-    min-width: 780px;
-    min-height: 580px;
+  @apply antialiased flex;
+  min-width: 820px;
+  min-height: 580px;
+  background: var(--bg-base);
+  color: var(--text-secondary);
 }
 
-/* Glass Container */
-.glass-container {
-    background: var(--glass-bg);
-    backdrop-filter: blur(16px);
-    border: 1px solid var(--glass-border);
-    @apply rounded-3xl shadow-xl overflow-hidden flex flex-row w-full;
-    height: 560px;
+/* ── Shell ──────────────────────────────────────── */
+.dark-container {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  @apply rounded-2xl overflow-hidden flex flex-row w-full;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+  height: 560px;
 }
 
-/* Premium Cards */
-.floating-card {
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(0, 0, 0, 0.03);
-    @apply rounded-2xl p-4 transition-all duration-300 shadow-sm;
+.sidebar    { background: var(--bg-sidebar); }
+.main-content { background: var(--bg-main); border-left: 1px solid var(--border); }
+
+/* ── Cards ──────────────────────────────────────── */
+.dark-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  @apply rounded-xl p-3;
 }
 
-.floating-card:hover {
-    background: rgba(255, 255, 255, 0.9);
-    border-color: rgba(0, 0, 0, 0.05);
-    @apply shadow-md;
+.section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
-/* Chat Input Styling */
+/* ── Logo ───────────────────────────────────────── */
+.logo-icon {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  box-shadow: 0 0 18px rgba(59,130,246,0.35);
+}
+
+/* ── Buttons ────────────────────────────────────── */
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  @apply text-white font-semibold flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200;
+  box-shadow: 0 4px 18px rgba(59,130,246,0.25);
+}
+.btn-primary:hover:not(:disabled) {
+  @apply -translate-y-0.5;
+  box-shadow: 0 6px 24px rgba(59,130,246,0.4);
+}
+.btn-primary:active:not(:disabled) { @apply scale-95; }
+.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.btn-secondary {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  @apply text-zinc-400 font-semibold flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200;
+}
+.btn-secondary:hover:not(:disabled) { border-color: var(--border-hi); @apply text-zinc-200; }
+.btn-secondary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  @apply text-zinc-500 rounded-lg transition-all duration-200 font-medium;
+}
+.btn-ghost:hover { border-color: var(--border-hi); @apply text-zinc-300; }
+
+/* ── Model Badge ────────────────────────────────── */
+.model-badge {
+  border: 1px solid rgba(34,197,94,0.25);
+  background: rgba(34,197,94,0.07);
+  color: #22c55e;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+/* ── Chat ───────────────────────────────────────── */
+.chat-bubble {
+  @apply text-xs px-3 py-2 rounded-xl max-w-[85%];
+}
+.chat-bubble.user {
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.2);
+  @apply text-blue-300 ml-auto;
+}
+.chat-bubble.assistant {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  @apply text-zinc-300;
+}
+.chat-bubble.system {
+  background: transparent;
+  @apply text-zinc-600 italic text-[10px] text-center w-full max-w-full;
+}
+
 .chat-input {
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    @apply focus:ring-2 focus:ring-blue-500 rounded-xl text-sm py-3 px-4 w-full text-slate-800 placeholder-slate-400 shadow-sm transition-all bg-white/90;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  @apply rounded-xl transition-all duration-200 outline-none;
 }
-
-/* Gradient Buttons */
-.btn-premium {
-    background: var(--accent-primary);
-    @apply text-white font-semibold flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition-transform hover:-translate-y-0.5 active:scale-95 shadow-[0_4px_14px_0_rgba(59,130,246,0.39)] disabled:opacity-50 disabled:hover:translate-y-0;
+.chat-input:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.12);
 }
+.chat-input::placeholder { color: var(--text-muted); }
 
-/* Animations */
+/* ── Animations ─────────────────────────────────── */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.animate-fade { animation: fadeIn 0.4s ease-out forwards; }
+
+/* ── Live Stream Pre ─────────────────────────────── */
+.live-stream {
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  line-height: 1.8;
+  white-space: pre-wrap;
 }
 
-.animate-fade {
-    animation: fadeIn 0.4s ease-out forwards;
+/* ═══════════════════════════════════════════════════
+   RESULT / MARKDOWN STYLES
+═══════════════════════════════════════════════════ */
+#result { color: var(--text-secondary); }
+
+#result h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+  @apply mt-5 mb-2 pb-2;
 }
 
-/* Markdown Overrides for Light Theme */
-#result h2 { @apply text-lg font-bold text-slate-800 mt-4 mb-2 font-calistoga tracking-wide; }
-#result h3 { @apply text-base font-semibold text-slate-700 mt-3 mb-1 font-calistoga; }
-#result p { @apply text-slate-600 leading-relaxed text-sm; }
-#result ul { @apply list-disc list-inside space-y-1.5 my-2 text-sm text-slate-600; }
-#result code { @apply bg-slate-100 text-blue-600 px-1.5 py-0.5 rounded text-xs font-mono font-medium border border-slate-200/50; }
-#result blockquote { @apply border-l-4 border-blue-500 bg-blue-50/50 pl-4 py-2 italic text-slate-600 rounded-r-lg; }
-#result pre { @apply bg-slate-50 border border-slate-200 rounded-xl p-4 my-2 overflow-x-auto text-xs text-slate-700 font-mono shadow-sm; }
-#result hr { @apply border-slate-200 my-6; }
+#result h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #c4b5fd;
+  @apply mt-3 mb-1.5;
+}
+
+#result p  { @apply text-sm leading-relaxed; color: var(--text-secondary); }
+#result ul { @apply list-disc list-inside space-y-1.5 my-2 text-sm; color: var(--text-secondary); }
+#result li::marker { color: var(--accent-blue); }
+#result a  { color: var(--accent-blue); @apply underline; }
+#result hr { border-color: var(--border); @apply my-5; }
+#result strong { color: var(--text-primary); font-weight: 600; }
+
+#result blockquote {
+  border-left: 3px solid var(--accent-blue);
+  background: rgba(59,130,246,0.05);
+  color: var(--text-secondary);
+  @apply pl-4 py-2 italic text-sm rounded-r-lg my-3;
+}
+
+/* ── Inline code (non-mermaid) ──────────────────── */
+#result code:not(.language-mermaid):not(.mermaid) {
+  background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.18);
+  color: #93c5fd;
+  font-family: 'JetBrains Mono', monospace;
+  @apply px-1.5 py-0.5 rounded text-xs;
+}
+
+/* ── Code blocks ────────────────────────────────── */
+#result pre {
+  background: var(--bg-code) !important;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent-blue);
+  @apply rounded-xl my-3 overflow-x-auto shadow-xl;
+  position: relative;
+  padding-top: 2.2rem; /* room for badge + copy btn */
+}
+
+#result pre code {
+  background: transparent !important;
+  border: none !important;
+  color: #cbd5e1;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  line-height: 1.75;
+  @apply px-4 pb-4 pt-1 block;
+}
+
+/* ── Code block UI overlays ─────────────────────── */
+.code-lang-badge {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.22);
+  color: #60a5fa;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  @apply px-2 py-0.5 rounded;
+}
+
+.code-copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  cursor: pointer;
+  @apply px-2 py-1 rounded-lg transition-all duration-150;
+}
+.code-copy-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+
+/* ── Risk Pills ─────────────────────────────────── */
+.risk-pill {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  @apply px-2 py-0.5 rounded-full;
+}
+.risk-pill-critical { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: #f87171; }
+.risk-pill-high     { background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.25); color: #fb923c; }
+.risk-pill-medium   { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); color: #fbbf24; }
+.risk-pill-low      { background: rgba(34,197,94,0.12);  border: 1px solid rgba(34,197,94,0.25);  color: #4ade80; }
+
+/* ── Mermaid rendered ───────────────────────────── */
+.mermaid-rendered {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  @apply my-4 p-4 rounded-xl overflow-x-auto flex justify-center;
+  animation: fadeIn 0.35s ease-out forwards;
+}
+.mermaid-rendered svg {
+  max-width: 100%;
+  height: auto;
+  font-family: 'JetBrains Mono', monospace;
+}
