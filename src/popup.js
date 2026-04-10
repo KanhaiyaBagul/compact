@@ -1,6 +1,6 @@
 import './styles.css';
 
-const DIFF_FETCH_TIMEOUT_MS = 15000;
+const DIFF_FETCH_TIMEOUT_MS = 60000;
 const OLLAMA_TIMEOUT_MS = null;
 const REPO_REVIEW_FILE_LIMIT = 25;
 const PER_FILE_CHAR_LIMIT = 4000;
@@ -17,6 +17,16 @@ let currentReportMeta = {
   totalDeletions: 0,
   skippedFiles: 0,
 };
+
+// Initialize Mermaid
+if (window.mermaid) {
+  window.mermaid.initialize({
+    startOnLoad: false,
+    theme: 'neutral',
+    securityLevel: 'loose',
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+  });
+}
 let chatHistory = [];
 
 function inProgress(active, failed) {
@@ -51,7 +61,7 @@ async function getSettings() {
       {
         api_key: 'ollama',
         api_url: 'http://localhost:11434/v1',
-        model_name: 'llama3.2:1b',
+        model_name: 'deepseek-r1:1.5b',
       },
       resolve
     );
@@ -146,13 +156,48 @@ function renderStaticMarkdown() {
   const wasNearBottom =
     resultEl.scrollTop + resultEl.clientHeight >= resultEl.scrollHeight - 48;
   staticEl.innerHTML = converter.makeHtml(staticMarkdown);
+  
+  // Transform mermaid code blocks to divs for mermaid.js
+  staticEl.querySelectorAll('pre code.language-mermaid, pre code.mermaid').forEach(el => {
+    const pre = el.parentElement;
+    const div = document.createElement('div');
+    div.className = 'mermaid';
+    div.textContent = el.textContent;
+    pre.replaceWith(div);
+  });
+
+  // Render mermaid diagrams
+  if (window.mermaid) {
+    try {
+      window.mermaid.run({
+        nodes: staticEl.querySelectorAll('.mermaid'),
+      });
+    } catch (e) {
+      console.error('Mermaid error:', e);
+    }
+  }
+
   if (wasNearBottom) {
     resultEl.scrollTop = resultEl.scrollHeight;
   }
 }
 
+function injectBadges(markdown) {
+  return markdown
+    .replace(/\[COMMIT BLOCKER\]/g, '<span class="badge badge-error">Commit Blocker</span>')
+    .replace(/\[BLOCKER\]/g, '<span class="badge badge-error">Blocker</span>')
+    .replace(/\[CRITICAL\]/g, '<span class="badge badge-error">Critical</span>')
+    .replace(/\[NEEDS MAJOR REVISION\]/g, '<span class="badge badge-warning">Major Revision</span>')
+    .replace(/\[NEEDS MINOR REVISION\]/g, '<span class="badge badge-info">Minor Revision</span>')
+    .replace(/\[STYLE VIOLATION\]/g, '<span class="badge badge-info">Style Violation</span>')
+    .replace(/\[STYLE\]/g, '<span class="badge badge-info">Style</span>')
+    .replace(/\[ACCEPTABLE\]/g, '<span class="badge badge-success">Acceptable</span>')
+    .replace(/\[FIXED\]/g, '<span class="badge badge-success">Fixed</span>')
+    .replace(/\[SECURITY\]/g, '<span class="badge badge-error">Security</span>');
+}
+
 function renderMarkdown(markdown) {
-  staticMarkdown = markdown;
+  staticMarkdown = injectBadges(markdown);
   liveMarkdown = '';
   const resultEl = ensureResultLayout();
   if (!resultEl) return;
@@ -169,7 +214,7 @@ function resetRenderedMarkdown(markdown = '') {
 }
 
 function appendStaticMarkdown(markdown) {
-  staticMarkdown += markdown;
+  staticMarkdown += injectBadges(markdown);
   renderStaticMarkdown();
 }
 
