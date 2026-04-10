@@ -1,12 +1,35 @@
 import './styles.css';
 
-const DIFF_FETCH_TIMEOUT_MS = 15000;
+const DIFF_FETCH_TIMEOUT_MS = 60000;
 const OLLAMA_TIMEOUT_MS = null;
 const REPO_REVIEW_FILE_LIMIT = 25;
 const PER_FILE_CHAR_LIMIT = 4000;
 const REPO_TOTAL_CHAR_LIMIT = 100000;
 const STREAM_RENDER_EVERY_TOKENS = 24;
 const STREAM_PAUSE_MS = 30;
+// Cache review results locally for 60 min to avoid hitting GitHub API rate limits
+const CACHE_TTL_MS = 60 * 60 * 1000;
+
+function getCachedResult(key) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([key], (result) => {
+      const entry = result[key];
+      if (entry && entry.html && (Date.now() - entry.ts) < CACHE_TTL_MS) {
+        resolve(entry.html);
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
+function setCachedResult(key, html) {
+  chrome.storage.local.set({ [key]: { html, ts: Date.now() } });
+}
+
+function removeCachedResult(key) {
+  return new Promise((resolve) => chrome.storage.local.remove([key], resolve));
+}
 let currentReportMeta = {
   mode: 'pr',
   title: '',
@@ -17,6 +40,16 @@ let currentReportMeta = {
   totalDeletions: 0,
   skippedFiles: 0,
 };
+
+// Initialize Mermaid
+if (window.mermaid) {
+  window.mermaid.initialize({
+    startOnLoad: false,
+    theme: 'neutral',
+    securityLevel: 'loose',
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+  });
+}
 let chatHistory = [];
 
 // ══════════════════════════════════════════════
@@ -43,20 +76,22 @@ function updateRiskGauge(score, counts) {
   const numEl   = document.getElementById('risk-score-num');
   const arcEl   = document.getElementById('risk-arc');
   const pillsEl = document.getElementById('risk-pills');
+  const tagEl   = document.getElementById('risk-level-tag');
   if (!numEl || !arcEl || !pillsEl) return;
 
   numEl.textContent = score;
 
-  const circumference = 2 * Math.PI * 48; // r = 48
+  const circumference = 2 * Math.PI * 46; // r = 46
   const filled = (score / 100) * circumference;
   arcEl.setAttribute('stroke-dasharray', `${filled.toFixed(1)} ${circumference.toFixed(1)}`);
 
-  let color = '#22c55e'; // green – low
-  if (score >= 70)      color = '#ef4444'; // red    – critical
-  else if (score >= 45) color = '#f97316'; // orange – high
-  else if (score >= 20) color = '#f59e0b'; // yellow – medium
+  let color = '#34d399'; let label = 'Low';    // green
+  if (score >= 70)      { color = '#f87171'; label = 'Critical'; }
+  else if (score >= 45) { color = '#fb923c'; label = 'High'; }
+  else if (score >= 20) { color = '#fbbf24'; label = 'Medium'; }
   arcEl.setAttribute('stroke', color);
   numEl.style.color = color;
+  if (tagEl) { tagEl.textContent = label; tagEl.style.color = color; tagEl.style.borderColor = color + '44'; }
 
   const pills = [];
   if (counts.critical > 0) pills.push(`<span class="risk-pill risk-pill-critical">● ${counts.critical} Critical</span>`);
@@ -65,16 +100,19 @@ function updateRiskGauge(score, counts) {
   if (counts.low > 0)      pills.push(`<span class="risk-pill risk-pill-low">● ${counts.low} Low</span>`);
   pillsEl.innerHTML = pills.length
     ? pills.join('')
-    : '<span style="font-size:10px;color:#52525b;font-style:italic">No issues found</span>';
+    : '<span class="no-risk-text">No issues found</span>';
 }
 
 function resetRiskGauge() {
   const numEl   = document.getElementById('risk-score-num');
   const arcEl   = document.getElementById('risk-arc');
   const pillsEl = document.getElementById('risk-pills');
+  const tagEl   = document.getElementById('risk-level-tag');
   if (numEl)   { numEl.textContent = '--'; numEl.style.color = ''; }
-  if (arcEl)   { arcEl.setAttribute('stroke-dasharray', '0 301.6'); arcEl.setAttribute('stroke', '#22c55e'); }
-  if (pillsEl) pillsEl.innerHTML = '<span style="font-size:10px;color:#52525b;font-style:italic">Analyzing...</span>';
+  const circumference = 2 * Math.PI * 46;
+  if (arcEl)   { arcEl.setAttribute('stroke-dasharray', `0 ${circumference.toFixed(1)}`); arcEl.setAttribute('stroke', '#34d399'); }
+  if (pillsEl) pillsEl.innerHTML = '<span class="no-risk-text">Analyzing...</span>';
+  if (tagEl)   { tagEl.textContent = '—'; tagEl.style.color = ''; tagEl.style.borderColor = ''; }
 }
 
 // ══════════════════════════════════════════════
@@ -187,7 +225,8 @@ async function getSettings() {
       {
         api_key: 'ollama',
         api_url: 'http://localhost:11434/v1',
-        model_name: 'llama3.2:1b',
+        model_name: 'deepseek-r1:1.5b',
+        gh_token: '',
       },
       resolve
     );
@@ -197,7 +236,21 @@ async function getSettings() {
     apiKey: settings['api_key'],
     baseUrl: settings['api_url'],
     model: settings['model_name'],
+    ghToken: settings['gh_token'],
   };
+}
+
+async function getGitHubHeaders() {
+  try {
+    const settings = await getSettings();
+    const headers = {};
+    if (settings.ghToken && settings.ghToken.trim()) {
+      headers['Authorization'] = `token ${settings.ghToken.trim()}`;
+    }
+    return headers;
+  } catch {
+    return {};
+  }
 }
 
 async function createOllamaClient() {
@@ -270,7 +323,7 @@ function ensureResultLayout() {
   if (!resultEl) return null;
   if (!resultEl.querySelector('#result-static')) {
     resultEl.innerHTML =
-      '<div id="result-static"></div><pre id="result-live" class="live-stream hidden"></pre>';
+      '<div id="result-static" class="result-body"></div><pre id="result-live" class="live-stream hidden"></pre>';
   }
   return resultEl;
 }
@@ -282,13 +335,48 @@ function renderStaticMarkdown() {
   const wasNearBottom =
     resultEl.scrollTop + resultEl.clientHeight >= resultEl.scrollHeight - 48;
   staticEl.innerHTML = converter.makeHtml(staticMarkdown);
+  
+  // Transform mermaid code blocks to divs for mermaid.js
+  staticEl.querySelectorAll('pre code.language-mermaid, pre code.mermaid').forEach(el => {
+    const pre = el.parentElement;
+    const div = document.createElement('div');
+    div.className = 'mermaid';
+    div.textContent = el.textContent;
+    pre.replaceWith(div);
+  });
+
+  // Render mermaid diagrams
+  if (window.mermaid) {
+    try {
+      window.mermaid.run({
+        nodes: staticEl.querySelectorAll('.mermaid'),
+      });
+    } catch (e) {
+      console.error('Mermaid error:', e);
+    }
+  }
+
   if (wasNearBottom) {
     resultEl.scrollTop = resultEl.scrollHeight;
   }
 }
 
+function injectBadges(markdown) {
+  return markdown
+    .replace(/\[COMMIT BLOCKER\]/g, '<span class="badge badge-error">Commit Blocker</span>')
+    .replace(/\[BLOCKER\]/g, '<span class="badge badge-error">Blocker</span>')
+    .replace(/\[CRITICAL\]/g, '<span class="badge badge-error">Critical</span>')
+    .replace(/\[NEEDS MAJOR REVISION\]/g, '<span class="badge badge-warning">Major Revision</span>')
+    .replace(/\[NEEDS MINOR REVISION\]/g, '<span class="badge badge-info">Minor Revision</span>')
+    .replace(/\[STYLE VIOLATION\]/g, '<span class="badge badge-info">Style Violation</span>')
+    .replace(/\[STYLE\]/g, '<span class="badge badge-info">Style</span>')
+    .replace(/\[ACCEPTABLE\]/g, '<span class="badge badge-success">Acceptable</span>')
+    .replace(/\[FIXED\]/g, '<span class="badge badge-success">Fixed</span>')
+    .replace(/\[SECURITY\]/g, '<span class="badge badge-error">Security</span>');
+}
+
 function renderMarkdown(markdown) {
-  staticMarkdown = markdown;
+  staticMarkdown = injectBadges(markdown);
   liveMarkdown = '';
   const resultEl = ensureResultLayout();
   if (!resultEl) return;
@@ -305,7 +393,7 @@ function resetRenderedMarkdown(markdown = '') {
 }
 
 function appendStaticMarkdown(markdown) {
-  staticMarkdown += markdown;
+  staticMarkdown += injectBadges(markdown);
   renderStaticMarkdown();
 }
 
@@ -443,12 +531,12 @@ async function reviewPR(diffPath, context, title) {
   inProgress(true);
   setDownloadEnabled(false);
   resetRiskGauge();
-  resetRenderedMarkdown('Fetching PR changes...\n');
-  chrome.storage.session.remove([diffPath]);
+  resetRenderedMarkdown('Fetching PR changes...');
 
   try {
     const client = await createOllamaClient();
-    const patch = await fetchWithTimeout(diffPath, DIFF_FETCH_TIMEOUT_MS);
+    const ghHeaders = await getGitHubHeaders();
+    const patch = await fetchWithTimeout(diffPath, DIFF_FETCH_TIMEOUT_MS, ghHeaders);
     const fileContext = buildFileReviewContext(patch);
     currentReportMeta.files = fileContext.files;
     currentReportMeta.totalAdditions = fileContext.totalAdditions;
@@ -472,14 +560,16 @@ async function reviewPR(diffPath, context, title) {
     enhanceCodeBlocks();
     const { score, counts } = computeRiskScore(staticMarkdown);
     updateRiskGauge(score, counts);
-    chrome.storage.session.set({
-      [diffPath]: document.getElementById('result').innerHTML,
-    });
+    setCachedResult(diffPath, document.getElementById('result').innerHTML);
     inProgress(false);
     setDownloadEnabled(true);
   } catch (e) {
     let msg = e.message || 'Unknown error';
-    if (msg.includes('Timed out')) msg += '\n\n> PR may be too large. Try a smaller PR or add a GitHub token in Options.';
+    if (msg.includes('Timed out')) {
+      msg += '\n\n> PR may be too large. Try a smaller PR or add a GitHub token in Options.';
+    } else if (msg.includes('403') && msg.includes('github.com')) {
+      msg += '\n\n> **GitHub Rate Limit Exceeded**: Please add a **GitHub Personal Access Token** in the Options page.';
+    }
     resetRenderedMarkdown('Review Error: ' + msg);
     inProgress(false, true);
     setDownloadEnabled(false);
@@ -582,63 +672,141 @@ async function fetchJsonWithTimeout(url, timeoutMs, headers = {}) {
   }
 }
 
+
+/** Reads branch name and visible file paths from the active GitHub repo tab DOM.
+ *  Zero API calls — all data comes from the already-rendered page. */
+async function getPageRepoInfo() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs[0];
+      if (!tab?.id) return resolve(null);
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          // ── Branch ───────────────────────────────────────────────
+          let branch = null;
+          // 1. data-ref attribute on branch picker
+          const refEl = document.querySelector('[data-ref]');
+          if (refEl) branch = refEl.dataset.ref;
+          // 2. /tree/{branch} in current URL
+          if (!branch) { const m = location.pathname.match(/\/tree\/([^/?#]+)/); if (m) branch = m[1]; }
+          // 3. <span class="css-truncate-target"> inside the branch button
+          if (!branch) { const span = document.querySelector('.branch-name, .ref-name, [data-menu-button] .css-truncate-target'); if (span) branch = span.textContent.trim(); }
+          // 4. summary[title] in branch summary element
+          if (!branch) { const s = document.querySelector('summary[title]'); if (s) branch = s.getAttribute('title'); }
+
+          // ── Files & Dirs ─────────────────────────────────────────
+          const files = [], dirs = [];
+          const seen = new Set();
+          document.querySelectorAll('a[href*="/blob/"], a[href*="/tree/"]').forEach(a => {
+            const href = a.getAttribute('href') || '';
+            const blobM = href.match(/\/blob\/[^/]+\/([^?#]+)/);
+            const treeM = href.match(/\/tree\/[^/]+\/([^?#]+)/);
+            if (blobM && !seen.has(blobM[1])) { seen.add(blobM[1]); files.push(blobM[1]); }
+            else if (treeM && !seen.has(treeM[1])) { seen.add(treeM[1]); dirs.push(treeM[1]); }
+          });
+
+          return { branch, files, dirs };
+        },
+      }, (results) => {
+        if (chrome.runtime.lastError || !results?.[0]?.result) return resolve(null);
+        resolve(results[0].result);
+      });
+    });
+  });
+}
+
 async function fetchRepositoryContext(owner, repo) {
-  const repoMeta = await fetchJsonWithTimeout(
-    `https://api.github.com/repos/${owner}/${repo}`,
-    DIFF_FETCH_TIMEOUT_MS
-  );
-  const branch = repoMeta.default_branch;
-  if (!branch) {
-    throw new Error('Could not determine default branch for repository.');
+  // ── Step 1: Read branch + visible files from page DOM (ZERO api.github.com calls) ──
+  let branch = 'main';
+  let pageDirs = [];
+  const candidatePaths = new Set();
+
+  const pageInfo = await getPageRepoInfo();
+  if (pageInfo) {
+    if (pageInfo.branch) branch = pageInfo.branch;
+    pageInfo.files.forEach(p => candidatePaths.add(p));
+    pageDirs = pageInfo.dirs || [];
   }
 
-  const treeData = await fetchJsonWithTimeout(
-    `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
-    DIFF_FETCH_TIMEOUT_MS
-  );
-  const allFiles = (treeData.tree || []).filter(
-    (item) => item.type === 'blob' && isLikelyTextFile(item.path)
-  );
-  const selectedFiles = allFiles.slice(0, REPO_REVIEW_FILE_LIMIT);
-  const skippedFiles = Math.max(0, allFiles.length - selectedFiles.length);
+  // ── Step 2: Always probe common convention files (language-agnostic) ──
+  const COMMON_ROOTS = [
+    'package.json', 'package-lock.json', 'yarn.lock',
+    'README.md', 'README.rst', 'readme.md',
+    'tsconfig.json', 'jsconfig.json',
+    'vite.config.js', 'vite.config.ts', 'webpack.config.js',
+    'next.config.js', 'next.config.ts',
+    'tailwind.config.js', 'postcss.config.js',
+    'src/index.js', 'src/index.ts', 'src/index.jsx', 'src/index.tsx',
+    'src/App.js', 'src/App.tsx', 'src/App.jsx', 'src/main.js', 'src/main.ts',
+    'main.py', 'app.py', '__init__.py', 'manage.py',
+    'requirements.txt', 'setup.py', 'setup.cfg', 'pyproject.toml',
+    'Makefile', 'CMakeLists.txt', 'Dockerfile', 'docker-compose.yml',
+    '.github/workflows/main.yml', '.github/workflows/ci.yml',
+    'go.mod', 'go.sum', 'main.go', 'Cargo.toml', 'pom.xml', 'build.gradle',
+  ];
+  COMMON_ROOTS.forEach(p => candidatePaths.add(p));
+
+  // For each top-level directory found in the page, try index files
+  const DIR_PROBES = ['index.js', 'index.ts', 'index.jsx', 'index.tsx', 'index.py', 'mod.rs'];
+  pageDirs.slice(0, 12).forEach(dir => {
+    DIR_PROBES.forEach(f => candidatePaths.add(`${dir}/${f}`));
+  });
+
+  // ── Step 3: Fetch file contents via raw.githubusercontent.com ──
+  // raw.githubusercontent.com is NOT subject to the 60/hour GitHub API rate limit.
+  const BRANCHES_TO_TRY = branch === 'main' ? ['main', 'master', 'develop'] : [branch, 'main', 'master'];
+  let resolvedBranch = branch;
 
   const files = [];
   let totalChars = 0;
-  for (const file of selectedFiles) {
+
+  for (const filePath of candidatePaths) {
+    if (files.length >= REPO_REVIEW_FILE_LIMIT) break;
     if (totalChars >= REPO_TOTAL_CHAR_LIMIT) break;
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${file.path}`;
-    let content = '';
-    try {
-      content = await fetchWithTimeout(rawUrl, DIFF_FETCH_TIMEOUT_MS);
-    } catch {
-      continue;
+    if (!isLikelyTextFile(filePath)) continue;
+
+    let content = null;
+    for (const tryBranch of BRANCHES_TO_TRY) {
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${tryBranch}/${filePath}`;
+      try {
+        const text = await fetchWithTimeout(rawUrl, DIFF_FETCH_TIMEOUT_MS);
+        // raw.githubusercontent.com returns '404: Not Found' body on missing files
+        if (text && !text.startsWith('404:') && !text.includes('\u0000')) {
+          content = text;
+          resolvedBranch = tryBranch;
+          break;
+        }
+      } catch { /* file doesn't exist on this branch, try next */ }
     }
-    if (!content || content.includes('\u0000')) continue;
+
+    if (!content) continue;
     const trimmed = content.slice(0, PER_FILE_CHAR_LIMIT);
     totalChars += trimmed.length;
-    files.push({
-      path: file.path,
-      additions: 0,
-      deletions: 0,
-      chars: trimmed.length,
-      content: trimmed,
-    });
+    files.push({ path: filePath, additions: 0, deletions: 0, chars: trimmed.length, content: trimmed });
+  }
+
+  if (files.length === 0) {
+    throw new Error(
+      `Could not read any files from ${owner}/${repo}. ` +
+      `Make sure you are on the repository's root page (github.com/${owner}/${repo}).`
+    );
   }
 
   return {
-    branch,
+    branch: resolvedBranch,
     files,
-    skippedFiles,
+    skippedFiles: Math.max(0, candidatePaths.size - files.length),
     totalChars,
     context:
       `Repository: ${owner}/${repo}\n` +
-      `Default branch: ${branch}\n` +
-      `Text files detected: ${allFiles.length}\n` +
-      `Files included in analysis: ${files.length}\n` +
-      `Files skipped due to limit: ${skippedFiles}\n` +
-      `Total characters sent: ${totalChars}`,
+      `Branch: ${resolvedBranch}\n` +
+      `Files analyzed: ${files.length}\n` +
+      `Files skipped: ${Math.max(0, candidatePaths.size - files.length)}\n` +
+      `Total characters: ${totalChars}`,
   };
 }
+
 
 async function reviewRepository(owner, repo) {
   inProgress(true);
@@ -707,13 +875,15 @@ async function reviewRepository(owner, repo) {
     const { score, counts } = computeRiskScore(staticMarkdown);
     updateRiskGauge(score, counts);
 
-    chrome.storage.session.set({
-      [`repo:${currentReportMeta.url}`]: document.getElementById('result').innerHTML,
-    });
+    setCachedResult(`repo:${currentReportMeta.url}`, document.getElementById('result').innerHTML);
     inProgress(false);
     setDownloadEnabled(true);
   } catch (e) {
-    resetRenderedMarkdown('Review Error: ' + e.message);
+    let msg = e.message || 'Unknown error';
+    if (msg.includes('403') && msg.includes('github.com')) {
+      msg += '\n\n> **GitHub Rate Limit Exceeded**: Repository scans require many API calls. Please add a **GitHub Personal Access Token** in the Options page.';
+    }
+    resetRenderedMarkdown('Review Error: ' + msg);
     inProgress(false, true);
     setDownloadEnabled(false);
   }
@@ -828,14 +998,12 @@ function run(forceRefresh = false) {
     if (isGitHubPR) {
       const diffPath = url + '.patch';
       if (forceRefresh) {
-        chrome.storage.session.remove([diffPath], () => {
-          reviewPR(diffPath, isGitHubPR, title);
-        });
+        removeCachedResult(diffPath).then(() => reviewPR(diffPath, isGitHubPR, title));
         return;
       }
-      chrome.storage.session.get([diffPath], (result) => {
-        if (result[diffPath]) {
-          document.getElementById('result').innerHTML = result[diffPath];
+      getCachedResult(diffPath).then((cached) => {
+        if (cached) {
+          document.getElementById('result').innerHTML = cached;
           inProgress(false);
           setDownloadEnabled(true);
         } else {
@@ -845,14 +1013,14 @@ function run(forceRefresh = false) {
     } else if (repoUrlParts) {
       const repoCacheKey = `repo:${url}`;
       if (forceRefresh) {
-        chrome.storage.session.remove([repoCacheKey], () => {
-          reviewRepository(repoUrlParts.owner, repoUrlParts.repo);
-        });
+        removeCachedResult(repoCacheKey).then(() =>
+          reviewRepository(repoUrlParts.owner, repoUrlParts.repo)
+        );
         return;
       }
-      chrome.storage.session.get([repoCacheKey], (result) => {
-        if (result[repoCacheKey]) {
-          document.getElementById('result').innerHTML = result[repoCacheKey];
+      getCachedResult(repoCacheKey).then((cached) => {
+        if (cached) {
+          document.getElementById('result').innerHTML = cached;
           inProgress(false);
           setDownloadEnabled(true);
         } else {
