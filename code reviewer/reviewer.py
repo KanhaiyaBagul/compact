@@ -5288,7 +5288,7 @@ TO FIX:
         print(f"Directories completed: {self.session.directories_completed}")
         if self.session.completed_directories:
             for d in self.session.completed_directories:
-                print(f"  ✓ {d}")
+                print(f"  [OK] {d}")
         print(f"Files fixed: {self.session.files_fixed}")
         print(f"Build failures: {self.session.build_failures}")
         print("=" * 60)
@@ -5421,7 +5421,7 @@ def preflight_sanity_check(
         
         if result.success:
             print("\n" + "=" * 70)
-            print("✓ PRE-FLIGHT CHECK PASSED")
+            print("[OK] PRE-FLIGHT CHECK PASSED")
             print("=" * 70)
             print(f"Source builds successfully in {result.duration_seconds:.1f}s")
             print(f"Warnings: {result.warning_count}")
@@ -5458,7 +5458,7 @@ def preflight_sanity_check(
             code, output = git._run(['stash', 'push', '-m', 'preflight-tool-backup', '.beads/', '.ai-code-reviewer/', '.angry-ai/'])
             if code == 0:
                 tool_files_stashed = True
-                print("✓ Tool-managed files stashed")
+                print("[OK] Tool-managed files stashed")
             else:
                 print(f"WARNING: Could not stash tool-managed files: {output}")
         
@@ -5499,7 +5499,7 @@ def preflight_sanity_check(
             
             if result.success:
                 print("\n" + "=" * 70)
-                print("✓ BUILD RECOVERED")
+                print("[OK] BUILD RECOVERED")
                 print("=" * 70)
                 print(f"Reset back {attempt} commit(s) to find working state:")
                 print(f"  Now at: {commit_info}")
@@ -5517,7 +5517,7 @@ def preflight_sanity_check(
                     print("\nRestoring tool-managed files...")
                     code, output = git._run(['stash', 'pop'])
                     if code == 0:
-                        print("✓ Tool-managed files restored")
+                        print("[OK] Tool-managed files restored")
                     else:
                         print(f"WARNING: Could not restore tool-managed files: {output}")
                         print("You may need to manually restore: git stash list")
@@ -5540,7 +5540,7 @@ def preflight_sanity_check(
         # Reset back to where we started
         code, output = git._run(['reset', '--hard', current_commit])
         if code == 0:
-            print(f"✓ Restored to original commit: {current_commit[:12]}")
+            print(f"[OK] Restored to original commit: {current_commit[:12]}")
         else:
             print(f"ERROR: Could not restore original state: {output}")
             print(f"Manually reset with: git reset --hard {current_commit}")
@@ -5743,7 +5743,7 @@ Examples:
         logger.info("LLM connection validated successfully!")
 
         if args.validate_only:
-            print("\n✓ LLM connection validated!")
+            print("\n[OK] LLM connection validated!")
             host_status = llm_client.get_host_status()
             for host in host_status:
                 print(f"  Host: {host['url']} ({host['backend']}) -> model: {host['model']}")
