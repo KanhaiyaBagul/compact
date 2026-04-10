@@ -260,6 +260,21 @@ async function getGitHubHeaders() {
   }
 }
 
+async function createOllamaClient() {
+  let settings;
+  try {
+    settings = await getSettings();
+  } catch (e) {
+    throw new Error('Error loading settings.');
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  if (settings.apiKey && settings.apiKey !== 'ollama') {
+    headers.Authorization = `Bearer ${settings.apiKey}`;
+  }
+
   return {
     endpoint: toChatCompletionsUrl(settings.baseUrl),
     model: settings.model,
