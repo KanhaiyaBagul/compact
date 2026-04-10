@@ -992,6 +992,8 @@ async function postJsonWithTimeout(url, body, headers, timeoutMs) {
   }
 }
 
+const { jsPDF } = require('jspdf');
+const html2canvas = require('html2canvas');
 const spinner =
   '<svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
 const checkmark =
@@ -1065,104 +1067,81 @@ function run(forceRefresh = false) {
   });
 }
 
-function downloadReportPdf() {
+async function downloadReportPdf() {
   const resultEl = document.getElementById('result');
   const riskScore = document.getElementById('risk-score-num')?.textContent || '--';
   const riskLevel = document.getElementById('risk-level-tag')?.textContent || 'UNKNOWN';
   if (!resultEl || !staticMarkdown) return;
 
+  inProgress(true); // show loading state as canvas generation takes a moment
+
   const now = new Date();
   const repoName = currentReportMeta.url ? currentReportMeta.url.split('github.com/')[1] : 'Security Review';
   
-  // HTML Template for the Pretty Report
-  const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Compact AI Report - ${repoName}</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Inter:wght@400;600&family=JetBrains+Mono&display=swap');
-    body { font-family: 'Inter', sans-serif; padding: 50px; color: #0f172a; max-width: 900px; margin: auto; line-height: 1.6; background: #fff; }
-    .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #f1f5f9; padding-bottom: 25px; margin-bottom: 40px; }
-    .logo { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; color: #4f8ef7; letter-spacing: -0.02em; }
-    .logo span { color: #94a3b8; font-weight: 300; }
-    .date { font-size: 13px; color: #64748b; font-family: 'JetBrains Mono', monospace; }
-    
-    .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 50px; }
-    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; text-align: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); }
-    .risk-num { font-family: 'Space Grotesk', sans-serif; font-size: 48px; font-weight: 700; color: #ef4444; line-height: 1; margin-bottom: 4px; }
-    .risk-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: #64748b; margin-bottom: 8px; }
-    .stat-num { font-size: 28px; font-weight: 600; color: #1e293b; }
-    
-    .content { background: white; }
-    .content h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.8rem; font-weight: 700; color: #0f172a; margin-top: 40px; border-left: 5px solid #4f8ef7; padding-left: 15px; }
-    .content h2 { font-family: 'Space Grotesk', sans-serif; font-size: 1.3rem; font-weight: 700; color: #1e293b; margin-top: 30px; display: flex; align-items: center; gap: 10px; }
-    .content h2::before { content: ''; width: 12px; height: 12px; background: #6366f1; border-radius: 3px; }
-    
-    pre { background: #0f172a; color: #e2e8f0; border-radius: 12px; padding: 20px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; margin: 20px 0; border: 1px solid #1e293b; }
-    code:not(pre code) { background: #f1f5f9; padding: 3px 6px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #ef4444; }
-    
-    blockquote { border-left: 5px solid #8b5cf6; background: #f5f3ff; margin: 25px 0; padding: 20px 30px; border-radius: 0 12px 12px 0; font-style: italic; color: #4c1d95; }
-    
-    ul { padding-left: 20px; }
-    li { margin-bottom: 8px; }
-    
-    @media print {
-      body { padding: 0; }
-      .card { box-shadow: none; border: 2px solid #f1f5f9; }
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div class="logo">COMPACT <span>AI ANALYZER</span></div>
-    <div class="date">${now.toLocaleDateString()} // ${now.toLocaleTimeString()}</div>
-  </div>
-
-  <div class="dashboard">
-    <div class="card">
-      <div class="risk-label">Security Risk</div>
-      <div class="risk-num" style="color: \${getRiskColor(riskScore)}">${riskScore}</div>
-      <div style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase;">Rating: ${riskLevel}</div>
+  // 1. Create a "Shadow Canvas" for rendering the report
+  const shadowReport = document.createElement('div');
+  shadowReport.style.position = 'absolute';
+  shadowReport.style.left = '-9999px';
+  shadowReport.style.top = '-9999px';
+  shadowReport.style.width = '800px'; // standard A4-ish width
+  shadowReport.style.background = '#fff';
+  shadowReport.style.padding = '40px';
+  shadowReport.style.color = '#0f172a';
+  
+  shadowReport.innerHTML = `
+    <div style="font-family: sans-serif; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div style="font-size: 24px; font-weight: bold; color: #4f8ef7;">COMPACT AI ANALYZER <span style="color: #94a3b8; font-weight: 300;">REPORT</span></div>
+      <div style="font-size: 12px; color: #64748b;">${now.toLocaleDateString()}</div>
     </div>
-    <div class="card">
-      <div class="risk-label">Files Analyzed</div>
-      <div class="stat-num">${currentReportMeta.files.length}</div>
-      <div style="font-size: 11px; color: #94a3b8;">CODEBASE SNAPSHOT</div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; text-align: center;">
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+        <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 5px;">RISK SCORE</div>
+        <div style="font-size: 36px; font-weight: 700; color: #ef4444;">${riskScore}</div>
+        <div style="font-size: 10px; font-weight: 600; color: #94a3b8;">${riskLevel}</div>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+        <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 5px;">FILES</div>
+        <div style="font-size: 28px; font-weight: 600;">${currentReportMeta.files.length}</div>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+        <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 5px;">DELTA</div>
+        <div style="font-size: 24px; font-weight: 600;">+${currentReportMeta.totalAdditions} / -${currentReportMeta.totalDeletions}</div>
+      </div>
     </div>
-    <div class="card">
-      <div class="risk-label">Delta Metrics</div>
-      <div class="stat-num">+${currentReportMeta.totalAdditions} / -${currentReportMeta.totalDeletions}</div>
-      <div style="font-size: 11px; color: #94a3b8;">LINES CHANGED</div>
+
+    <div style="font-size: 14px; line-height: 1.6;">
+      ${resultEl.innerHTML}
     </div>
-  </div>
 
-  <div class="content">
-    ${resultEl.innerHTML}
-  </div>
-
-  <div style="margin-top: 60px; text-align: center; border-top: 2px solid #f1f5f9; padding-top: 30px; font-size: 11px; color: #94a3b8; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em;">
-    CONFIDENTIAL // GENERATED BY COMPACT AI ENGINE // END OF REPORT
-  </div>
-
-  <script>
-    function getRiskColor(score) {
-      if (score >= 70) return '#ef4444';
-      if (score >= 45) return '#fb923c';
-      if (score >= 20) return '#fbbf24';
-      return '#22c55e';
-    }
-    window.onload = () => {
-      setTimeout(() => { window.print(); }, 500);
-    };
-  </script>
-</body>
-</html>
+    <div style="margin-top: 50px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+      END OF SECURITY AUDIT REPORT // GENERATED BY COMPACT AI
+    </div>
   `;
+  document.body.appendChild(shadowReport);
 
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  chrome.tabs.create({ url });
+  try {
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    
+    // Convert shadow report to PDF directly
+    await pdf.html(shadowReport, {
+      x: 10,
+      y: 10,
+      width: pdfWidth - 20,
+      windowWidth: 800,
+      callback: (doc) => {
+        const safeName = currentReportMeta.url.split('/').pop() || 'report';
+        doc.save(`Compact_Audit_${safeName}.pdf`);
+        inProgress(false);
+        document.body.removeChild(shadowReport);
+      }
+    });
+  } catch (err) {
+    console.error('PDF Generation failed:', err);
+    inProgress(false, true);
+    document.body.removeChild(shadowReport);
+  }
 }
 
 function sanitizeFileName(input) {
