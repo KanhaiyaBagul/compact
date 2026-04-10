@@ -212,11 +212,14 @@ function inProgress(active, failed) {
 
 function setDownloadEnabled(enabled) {
   const downloadBtn = document.getElementById('download-btn');
-  if (downloadBtn) {
-    downloadBtn.disabled = !enabled;
-    downloadBtn.classList.toggle('opacity-50', !enabled);
-    downloadBtn.classList.toggle('shadow-none', !enabled);
-  }
+  const downloadMdBtn = document.getElementById('download-md-btn');
+  [downloadBtn, downloadMdBtn].forEach((btn) => {
+    if (btn) {
+      btn.disabled = !enabled;
+      btn.classList.toggle('opacity-50', !enabled);
+      btn.classList.toggle('shadow-none', !enabled);
+    }
+  });
 }
 
 async function getSettings() {
@@ -293,12 +296,19 @@ async function askOllama(client, prompt, timeoutMs = OLLAMA_TIMEOUT_MS) {
       timeoutMs
     );
 
-    const text = response?.choices?.[0]?.message?.content?.trim();
+    let text = response?.choices?.[0]?.message?.content?.trim();
     if (!text) {
       throw new Error(
         'Ollama returned an empty response. Check model availability and logs.'
       );
     }
+
+    // Optimization: Strip reasoning tags (<thought>) for models like DeepSeek-R1
+    // to ensure the final report is clean for the user.
+    if (text.includes('<thought>')) {
+      text = text.replace(/<thought>[\s\S]*?<\/thought>/gi, '').trim();
+    }
+
     return text;
   } catch (e) {
     let errorMsg = e.message || 'Unknown error';
@@ -1038,41 +1048,50 @@ function run(forceRefresh = false) {
 
 function downloadReportPdf() {
   const resultEl = document.getElementById('result');
+  const riskScore = document.getElementById('risk-score-num')?.textContent || '--';
+  const riskLevel = document.getElementById('risk-level-tag')?.textContent || 'UNKNOWN';
   if (!resultEl || !resultEl.innerText.trim()) return;
 
   const now = new Date();
+  const sep = '================================================================================';
+  const subSep = '--------------------------------------------------------------------------------';
+  
   const lines = [
-    'Compact Review Report',
+    sep,
+    '                          COMPACT AI CODE REVIEW REPORT',
+    sep,
     '',
-    `Mode: ${
-      currentReportMeta.mode === 'repo'
-        ? 'Repository Review'
-        : 'Pull Request Review'
-    }`,
-    `Title: ${currentReportMeta.title || 'N/A'}`,
-    `URL: ${currentReportMeta.url || 'N/A'}`,
-    ...(currentReportMeta.branch
-      ? [`Branch: ${currentReportMeta.branch}`]
-      : []),
-    `Generated: ${now.toISOString()}`,
+    `  GENERATED: ${now.toLocaleString()}`,
+    `  TARGET:    ${currentReportMeta.url || 'N/A'}`,
+    `  MODE:      ${currentReportMeta.mode === 'repo' ? 'Repository Scan' : 'Pull Request Review'}`,
+    `  BRANCH:    ${currentReportMeta.branch || 'N/A'}`,
     '',
-    `Files changed: ${currentReportMeta.files.length}`,
-    `Total additions: ${currentReportMeta.totalAdditions}`,
-    `Total deletions: ${currentReportMeta.totalDeletions}`,
-    ...(currentReportMeta.mode === 'repo'
-      ? [`Files skipped (limit/filter): ${currentReportMeta.skippedFiles}`]
-      : []),
+    subSep,
+    '  DASHBOARD SUMMARY',
+    subSep,
+    `  [!] RISK SCORE: ${riskScore}/100    LEVEL: ${riskLevel}`,
     '',
-    '----- FILES -----',
+    `  Files Analyzed:  ${currentReportMeta.files.length}`,
+    `  Total Additions: ${currentReportMeta.totalAdditions}`,
+    `  Total Deletions: ${currentReportMeta.totalDeletions}`,
+    ...(currentReportMeta.mode === 'repo' ? [`  Files Skipped:   ${currentReportMeta.skippedFiles}`] : []),
+    '',
+    subSep,
+    '  INCLUDED FILES',
+    subSep,
     ...(currentReportMeta.files.length
-      ? currentReportMeta.files.map(
-          (f) => `${f.path} (+${f.additions} / -${f.deletions})`
-        )
-      : ['No file stats available']),
+      ? currentReportMeta.files.map((f) => `  - ${f.path.padEnd(45)} (+${f.additions} / -${f.deletions})`)
+      : ['  No file stats available']),
     '',
-    '----- REVIEW -----',
+    subSep,
+    '  DETAILED ANALYSIS',
+    subSep,
     '',
-    ...resultEl.innerText.split('\n'),
+    ...resultEl.innerText.split('\n').map(line => `  ${line}`),
+    '',
+    sep,
+    '                          END OF COMPACT AI REPORT',
+    sep,
   ];
 
   const wrappedLines = wrapLines(lines, 95);
@@ -1099,6 +1118,43 @@ function sanitizeFileName(input) {
     .trim()
     .replace(/\s+/g, '-')
     .slice(0, 80);
+}
+
+function downloadReportMd() {
+  const resultEl = document.getElementById('result');
+  if (!resultEl || !staticMarkdown) return;
+
+  const now = new Date();
+  const header = [
+    `# Compact AI Review Report`,
+    `> **Generated**: ${now.toLocaleString()}`,
+    `> **Target**: ${currentReportMeta.url || 'Repository'}`,
+    `> **Mode**: ${currentReportMeta.mode === 'repo' ? 'Repository Scan' : 'Pull Request Review'}`,
+    `> **Risk Score**: ${document.getElementById('risk-score-num')?.textContent || '--'}/100`,
+    ``,
+    `---`,
+    ``,
+    `## Context Overview`,
+    `- **Files Analyzed**: ${currentReportMeta.files.length}`,
+    `- **Total Additions**: ${currentReportMeta.totalAdditions}`,
+    `- **Total Deletions**: ${currentReportMeta.totalDeletions}`,
+    currentReportMeta.mode === 'repo' ? `- **Files Skipped**: ${currentReportMeta.skippedFiles}` : '',
+    ``,
+    `### Files Included`,
+    ...currentReportMeta.files.map(f => `- \`${f.path}\` (+${f.additions} / -${f.deletions})`),
+    ``,
+    `---`,
+    ``,
+    staticMarkdown
+  ].join('\n');
+
+  const blob = new Blob([header], { type: 'text/markdown' });
+  const downloadUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = `Compact_Review_${currentReportMeta.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'report'}.md`;
+  a.click();
+  URL.revokeObjectURL(downloadUrl);
 }
 
 function wrapLines(lines, maxChars) {
@@ -1197,6 +1253,10 @@ if (runButton) {
 const downloadButton = document.getElementById('download-btn');
 if (downloadButton) {
   downloadButton.addEventListener('click', downloadReportPdf);
+}
+const downloadMdButton = document.getElementById('download-md-btn');
+if (downloadMdButton) {
+  downloadMdButton.addEventListener('click', downloadReportMd);
 }
 const chatToggleBtn = document.getElementById('chat-toggle-btn');
 if (chatToggleBtn) {
