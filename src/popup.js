@@ -232,7 +232,7 @@ async function getSettings() {
       {
         api_key: 'ollama',
         api_url: 'http://localhost:11434/v1',
-        model_name: 'deepseek-r1:1.5b',
+        model_name: 'llama3.2:1b',
         gh_token: '',
       },
       resolve
@@ -259,7 +259,12 @@ async function getGitHubHeaders() {
     return {};
   }
 }
-
+async function createOllamaClient() {
+  const settings = await getSettings();
+  const headers = { 'Content-Type': 'application/json' };
+  if (settings.apiKey && settings.apiKey !== 'ollama') {
+    headers['Authorization'] = `Bearer ${settings.apiKey}`;
+  }
   return {
     endpoint: toChatCompletionsUrl(settings.baseUrl),
     model: settings.model,
@@ -268,6 +273,7 @@ async function getGitHubHeaders() {
       'You are a local programming code reviewer. Provide concise, practical feedback on the provided changes.',
   };
 }
+
 
 const PREMIUM_DIAGRAM_KEY = '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';
 
